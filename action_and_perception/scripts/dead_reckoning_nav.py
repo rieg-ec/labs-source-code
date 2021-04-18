@@ -22,16 +22,13 @@ class DeadReckonNav:
             '/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=10)
         self.in_destination = False
 
-    def listen(self):
-        rospy.spin()
-
     def _move_action_cb(self, pose_array):
         rospy.loginfo(f"received pose_array {pose_array}")
         for goal_pose in pose_array.poses:
             self._move_robot_to_destination(goal_pose)
 
     def _move_robot_to_destination(self, goal_pose):
-        velocities = calc_velocity(goal_pose)
+        velocities = self._calc_velocity(goal_pose)
         for lin_vel, ang_vel, t in velocities:
             self._apply_velocity(lin_vel, ang_vel, t)
 
@@ -64,4 +61,4 @@ class DeadReckonNav:
 if __name__ == '__main__':
     rospy.init_node("dead_reckoning_nav", anonymous=True)
     dead_reck_nav = DeadReckonNav()
-    dead_reck_nav.listen()
+    rospy.spin()
