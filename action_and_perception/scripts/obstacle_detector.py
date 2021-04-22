@@ -9,6 +9,8 @@ class ObstacleDetector:
         self.occupancy_state_publisher = rospy.Publisher(
             '/occupancy_state', String, queue_size=10)
 
+        self.publish_occupancy()
+
     def publish_occupancy(self) -> None:
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
