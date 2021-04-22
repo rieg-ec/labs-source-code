@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 import rospy
-from std_msgs.msg import String
+from action_and_perception.msg import OccupancyArray
 
 
 class ObstacleDetector:
     def __init__(self):
         self.occupancy_state_publisher = rospy.Publisher(
-            '/occupancy_state', String, queue_size=10)
+            '/occupancy_state', OccupancyArray, queue_size=10)
 
         self.publish_occupancy()
 
     def publish_occupancy(self) -> None:
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
-            self.occupancy_state_publisher.publish("free")
+            self.occupancy_state_publisher.publish(['free'])
             rate.sleep()
 
 
