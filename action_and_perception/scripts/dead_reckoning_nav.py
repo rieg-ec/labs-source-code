@@ -7,13 +7,12 @@ from geometry_msgs.msg import Twist, Pose, PoseArray, Point
 from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
 from typing import Tuple, List
-from os import path
 from utils import calculate_ang, plot_results
 
 
 class DeadReckonNav:
 
-    def __init__(self):
+    def __init__(self) -> None:
         rospy.Subscriber('/goal_list', PoseArray, self._move_action_cb)
         rospy.Subscriber('/odom', Odometry, self._odom_listener)
         rospy.Subscriber('/real_pose', Pose, self._real_pose_listener)
