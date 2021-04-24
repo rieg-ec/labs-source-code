@@ -25,7 +25,6 @@ with open(filepath) as f:
 
 
 def broadcast_pose_array():
-    rate = rospy.Rate(0.5)
     while positions_publisher.get_num_connections() < 1:
         rate.sleep()
 
