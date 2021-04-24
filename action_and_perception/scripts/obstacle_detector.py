@@ -13,7 +13,7 @@ class ObstacleDetector:
             '/camera/depth/image_raw', Image, self.image_process)
         self.occupancy_state_publisher = rospy.Publisher(
             '/occupancy_state', String, queue_size=1)
-        self.obstacle_pos: str = ''
+        self.obstacle_pos: str = "free"
         self.bridge = CvBridge()
 
     def image_process(self, image: Image) -> None:
