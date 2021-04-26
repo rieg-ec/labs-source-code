@@ -1,0 +1,3 @@
+<launch>
+  <node name="dead_reckoning_nav" pkg="action_and_perception" type="dead_reckoning_nav.py" output="screen"/>
+</launch>

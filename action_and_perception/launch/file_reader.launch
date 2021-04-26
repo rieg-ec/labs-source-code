@@ -1,0 +1,3 @@
+<launch>
+  <node name="file_reader" pkg="action_and_perception" type="file_reader.py"/>
+</launch>

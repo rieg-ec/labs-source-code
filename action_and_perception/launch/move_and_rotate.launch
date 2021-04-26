@@ -1,0 +1,6 @@
+<launch>
+  <include file="$(find very_simple_robot_simulator)/launch/minimal_simulator_py.launch" />
+  <include file="$(find action_and_perception)/launch/file_reader.launch" />
+  <include file="$(find action_and_perception)/launch/dead_reckoning_nav.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/world_state.launch" />
+</launch>
