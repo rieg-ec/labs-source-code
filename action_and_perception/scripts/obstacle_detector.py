@@ -24,7 +24,7 @@ class ObstacleDetector:
 
         self.bridge = CvBridge()
         self._obstacle_pos: str = "free"
-        self.soundhandle = SoundClient(blocking=True)
+        self.soundhandle = SoundClient()
 
     @property
     def obstacle_pos(self) -> str:
@@ -32,7 +32,7 @@ class ObstacleDetector:
 
     @obstacle_pos.setter
     def obstacle_pos(self, value: str) -> None:
-        if value != "free":
+        if value != "free" and value != self._obstacle_pos:
             self.soundhandle.say(self.sound_messages[value],
                                  voice='voice_kal_diphone')
 
@@ -75,7 +75,6 @@ class ObstacleDetector:
 
 if __name__ == '__main__':
     rospy.init_node('obstacle_detector', anonymous=True)
-    rospy.init_node('turtlebot_audio')
 
     obstacle_detector = ObstacleDetector()
     obstacle_detector.publish_occupancy()
