@@ -1,3 +1,5 @@
 <launch>
   <node name="obstacle_detector" pkg="action_and_perception" type="obstacle_detector.py" output="screen"/>
+
+  <include file="$(find action_and_perception)/launch/move_and_rotate.launch" />
 </launch>
