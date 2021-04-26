@@ -74,8 +74,8 @@ class DeadReckonNav:
             if self.occupancy_state == "free":
                 self.velocity_publisher.publish(velocity)
                 ellapsed_t.secs += 1/rate
-            else:
-                rospy.Rate(rate).sleep()
+
+            rospy.Rate(rate).sleep()
 
         if lin_speed:  # log after having moved with lin_speed
             self.log_pose()
