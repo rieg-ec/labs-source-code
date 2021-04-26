@@ -19,7 +19,7 @@ class ObstacleDetector:
     def image_process(self, image: Image) -> None:
         # Image dimension is 480 (fila), 640 (columnas)
         # With self.bridge we convert the depth image to a matrix.
-        distance = 1.5
+        distance = 2
         self.current_image = np.asarray(
             self.bridge.imgmsg_to_cv2(image, '32FC1'))
         self.current_image_left = self.current_image[:, :210]
