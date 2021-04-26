@@ -64,7 +64,7 @@ def calculate_ang(current_ang: float, goal_ang: float, speed: float) -> Tuple[fl
         dir = -1
 
     if ((goal_ang > current_ang and dir == 1) or
-            (goal_ang < current_ang and dir == -1)
+                (goal_ang < current_ang and dir == -1)
             ):
         time = abs((goal_ang - current_ang) / speed)
 

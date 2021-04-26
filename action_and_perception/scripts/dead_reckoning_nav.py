@@ -17,7 +17,7 @@ class DeadReckonNav:
         rospy.Subscriber('/odom', Odometry, self._odom_listener)
         rospy.Subscriber('/real_pose', Pose, self._real_pose_listener)
         rospy.Subscriber('/occupancy_state', String,
-                         lambda state: setattr(self, 'occupancy_state', state))
+                         lambda state: setattr(self, 'occupancy_state', state.data))
         self.velocity_publisher = rospy.Publisher(
             '/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=1)
 
@@ -29,7 +29,7 @@ class DeadReckonNav:
         self.lin_speed: float = 0.4
         self.ang_speed: float = 1
 
-        self.occupancy_state = "free"
+        self.occupancy_state: str = "free"
 
     def _odom_listener(self, odom: Odometry) -> None:
         if not hasattr(self, 'start_pose'):
@@ -48,17 +48,13 @@ class DeadReckonNav:
         self.real_pose = pose
 
     def _move_action_cb(self, pose_array: PoseArray) -> None:
-        rate = rospy.Rate(10)
         while not self.pose_estimation:
-            rate.sleep()
+            rospy.Rate(10).sleep()
 
         for goal_pose in pose_array.poses:
             self.in_destination = False
             self.goal_pose = goal_pose
             self._move_robot_to_destination(goal_pose)
-
-        rospy.loginfo(f"odom: {self.odom_positions}")
-        rospy.loginfo(f"real: {self.real_positions}")
 
         plot_results(self.odom_positions, self.real_positions)
 
@@ -73,13 +69,13 @@ class DeadReckonNav:
 
         ellapsed_t = rospy.Time(secs=0)
 
-        rate = 100
-
+        rate = 10
         while ellapsed_t < t:
             if self.occupancy_state == "free":
                 self.velocity_publisher.publish(velocity)
                 ellapsed_t.secs += 1/rate
-            rospy.Rate(rate).sleep()
+            else:
+                rospy.Rate(rate).sleep()
 
         if lin_speed:  # log after having moved with lin_speed
             self.log_pose()

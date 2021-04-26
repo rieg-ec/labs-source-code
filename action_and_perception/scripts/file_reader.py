@@ -3,16 +3,15 @@
 import rospy
 from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray
 from tf.transformations import quaternion_from_euler
+from os import path
+import rospkg
 
-rospy.init_node('file_reader', anonymous=True)
-positions_publisher = rospy.Publisher(
-    '/goal_list', PoseArray, queue_size=10)
-
-rate = rospy.Rate(10)
+rospack = rospkg.RosPack()
 
 pose_msg = PoseArray()
 
-filepath = 'positions.csv'
+filepath = path.join(rospack.get_path(
+    'action_and_perception'), 'scripts', 'positions.csv')
 
 with open(filepath) as f:
     positions_list = []
@@ -23,12 +22,14 @@ with open(filepath) as f:
             pose = Pose(Point(*pos_list[:2], 0), Quaternion(*odom_quat))
             pose_msg.poses.append(pose)
 
+rospy.init_node('file_reader', anonymous=True)
+positions_publisher = rospy.Publisher(
+    '/goal_list', PoseArray, queue_size=10)
+
 
 def broadcast_pose_array():
     while positions_publisher.get_num_connections() < 1:
-        rate.sleep()
-
-    rospy.loginfo(f"sending pose_array {pose_msg}")
+        rospy.Rate(1).sleep()
     positions_publisher.publish(pose_msg)
 
 
