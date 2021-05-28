@@ -24,3 +24,6 @@ if __name__ == '__main__':
     rospy.init_node('read_kinect_depth')
     rospy.Subscriber('/camera/depth/image_raw', Image, show_depth_image)
     rospy.spin()
+
+
+# HOLA RAMON COMO ESTAS?
