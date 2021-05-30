@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from sound_play.libsoundplay import SoundClient
@@ -21,6 +21,9 @@ class ObstacleDetector:
             '/camera/depth/image_raw', Image, self._image_process)
         self.occupancy_state_publisher = rospy.Publisher(
             '/occupancy_state', String, queue_size=1)
+
+        self.accurate_occupancy_state_publisher = rospy.Publisher(
+            '/accurate_occupancy_state', Float64, queue_size=1)
 
         self.bridge = CvBridge()
         self._obstacle_pos: str = "free"
@@ -45,8 +48,32 @@ class ObstacleDetector:
         self.current_image = np.asarray(
             self.bridge.imgmsg_to_cv2(image, '32FC1'))
         self.current_image_left = self.current_image[:, :210]
-        self.current_image_center = self.current_image[:, 211:420]
-        self.current_image_right = self.current_image[:, 421:640]
+        self.current_image_center = self.current_image[:, 210:420]
+        self.current_image_right = self.current_image[:, 420:640]
+
+
+
+        ## CONTROL PASILLO ##
+        if np.isnan( np.mean( np.mean( self.current_image_left ) ) ):
+            self.accurate_occupancy_state_publisher.publish(
+                Float64( 3.0 )
+            )
+       
+        elif np.isnan( np.mean( np.mean( self.current_image_right ) ) ):
+            self.accurate_occupancy_state_publisher.publish(
+                Float64( -3.0 )
+            )
+
+        else:
+            diferencia = Float64( np.mean(np.mean(self.current_image_right)) - np.mean(np.mean(self.current_image_left)) )
+            self.accurate_occupancy_state_publisher.publish(
+                diferencia
+            )
+
+        print(f"Mera { Float64( np.mean(np.mean(self.current_image_left)) - np.mean(np.mean(self.current_image_right)) ) }")
+
+
+        ## REPORTE OBSTACULOS ##
 
         if np.mean(np.mean(self.current_image_center)) < distance:
             # we take the mean of the mean
