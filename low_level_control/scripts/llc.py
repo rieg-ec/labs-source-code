@@ -64,12 +64,12 @@ class NavPID:
         self.linear_setpoint_publisher.publish(0)
 
         while self.ERROR_TOLERANCE < abs(get_state() - goal_pos_lin):
-            velocity = Twist()
-            velocity.linear.x = self.lin_speed
-
             self.linear_state_publisher.publish(
                 abs(get_state() - goal_pos_lin)
             )
+
+            velocity = Twist()
+            velocity.linear.x = self.lin_speed
 
             if self.occupancy_state == 'free':
                 self.velocity_publisher.publish(velocity)
@@ -84,12 +84,12 @@ class NavPID:
         self.ang_setpoint_publisher.publish(0)
 
         while self.ERROR_TOLERANCE < abs(get_state()[1]):
-            velocity = Twist()
-            velocity.angular.z = self.ang_speed * get_state()[0]
-
             self.ang_state_publisher.publish(
                 get_state()[1]
             )
+
+            velocity = Twist()
+            velocity.angular.z = self.ang_speed * get_state()[0]
 
             self.velocity_publisher.publish(velocity)
 
