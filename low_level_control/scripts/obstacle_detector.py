@@ -23,7 +23,7 @@ class ObstacleDetector:
             '/occupancy_state', String, queue_size=1)
 
         self.accurate_occupancy_state_publisher = rospy.Publisher(
-            '/accurate_occupancy_state', Float64, queue_size=1)
+            '/wall_distance', Float64, queue_size=1)
 
         self.bridge = CvBridge()
         self._obstacle_pos: str = "free"
@@ -44,16 +44,39 @@ class ObstacleDetector:
     def _image_process(self, image: Image) -> None:
         # Image dimension is 480 (fila), 640 (columnas)
         # With self.bridge we convert the depth image to a matrix.
-        distance = 2
+        self.distance = 2
         self.current_image = np.asarray(
             self.bridge.imgmsg_to_cv2(image, '32FC1'))
         self.current_image_left = self.current_image[:, :210]
         self.current_image_center = self.current_image[:, 210:420]
         self.current_image_right = self.current_image[:, 420:640]
 
-
-
         ## CONTROL PASILLO ##
+        self.wall_distance_publish()
+            
+        ## REPORTE OBSTACULOS ##
+        self.obstacle_changes()
+
+    def obstacle_changes(self):
+        if np.mean(np.mean(self.current_image_center)) < self.distance:
+            # we take the mean of the mean
+            # because the mean of a matrix is a vector
+            # and the mean of a vector is a number.
+            self.obstacle_pos = "obstacle_center"
+
+        elif np.mean(np.mean(self.current_image_left)) < self.distance:
+            self.obstacle_pos = "obstacle_left"
+
+        elif np.mean(np.mean(self.current_image_right)) < self.distance:
+            self.obstacle_pos = "obstacle_right"
+
+        elif (np.mean(np.mean(self.current_image_left)) >= self.distance and
+              np.mean(np.mean(self.current_image_center)) >= self.distance and
+              np.mean(np.mean(self.current_image_center)) >= self.distance
+              ):
+            self.obstacle_pos = "free"
+
+    def wall_distance_publish(self):
         if np.isnan( np.mean( np.mean( self.current_image_left ) ) ):
             self.accurate_occupancy_state_publisher.publish(
                 Float64( 3.0 )
@@ -70,28 +93,7 @@ class ObstacleDetector:
                 diferencia
             )
 
-        print(f"Mera { Float64( np.mean(np.mean(self.current_image_left)) - np.mean(np.mean(self.current_image_right)) ) }")
 
-
-        ## REPORTE OBSTACULOS ##
-
-        if np.mean(np.mean(self.current_image_center)) < distance:
-            # we take the mean of the mean
-            # because the mean of a matrix is a vector
-            # and the mean of a vector is a number.
-            self.obstacle_pos = "obstacle_center"
-
-        elif np.mean(np.mean(self.current_image_left)) < distance:
-            self.obstacle_pos = "obstacle_left"
-
-        elif np.mean(np.mean(self.current_image_right)) < distance:
-            self.obstacle_pos = "obstacle_right"
-
-        elif (np.mean(np.mean(self.current_image_left)) >= distance and
-              np.mean(np.mean(self.current_image_center)) >= distance and
-              np.mean(np.mean(self.current_image_center)) >= distance
-              ):
-            self.obstacle_pos = "free"
 
     def publish_occupancy(self) -> None:
         while not rospy.is_shutdown():
