@@ -37,18 +37,12 @@ class HallNavigation:
 
         self.occupancy_state: str = "free"
 
-    def occupancy_changes(self, occupancy):
-        if occupancy == 'obstacle_center':
-            self.lin_speed: float = 0.5
-            self.velocity.linear.x = self.lin_speed
-        else:
-            self.lin_speed: float = 1.0
-            self.velocity.linear.x = self.lin_speed
-
     def control_proporcional(self, diferencia_obstaculos):
         error = (self.referencia - diferencia_obstaculos.data)
         self.ang_speed = self.kp * error
+        self.lin_speed = 1.0
         self.velocity.angular.z = self.ang_speed
+        self.velocity.linear.x = self.lin_speed
 
         self.velocity_publisher.publish(self.velocity)
     
