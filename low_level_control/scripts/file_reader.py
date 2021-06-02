@@ -11,7 +11,7 @@ rospack = rospkg.RosPack()
 pose_msg = PoseArray()
 
 filepath = path.join(rospack.get_path(
-    'action_and_perception'), 'scripts', 'positions.csv')
+    'low_level_control'), 'scripts', 'positions.csv')
 
 with open(filepath) as f:
     positions_list = []
