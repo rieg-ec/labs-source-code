@@ -10,7 +10,7 @@
   <node name="angular_controller" pkg="pid" type="controller" ns="pid_angular" output="screen" >
     <param name="Kp" value="0.5" />
     <param name="upper_limit" value="0.7" />
-    <param name="lower_limit" value="-07" />
+    <param name="lower_limit" value="-0.7" />
     <param name="windup_limit" value="10" />
   </node>
 
