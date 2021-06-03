@@ -50,7 +50,7 @@ class NavPID:
 
         self.occupancy_state: str = "free"
 
-        self.ERROR_TOLERANCE = 0.05
+        self.ERROR_TOLERANCE = 0.01
 
     def _controlled_forward(self, goal_pos_lin: float, axis: str) -> None:
         def get_state():
@@ -118,6 +118,7 @@ class NavPID:
         self._controlled_turning(orientation_to_yaw(goal_pose.orientation))
 
     def _move_action_cb(self, pose_array: PoseArray) -> None:
+        self.log_poses()
         for goal_pose in pose_array.poses:
             self._move_robot_to_destination_ctrl(goal_pose)
             self.log_poses()
