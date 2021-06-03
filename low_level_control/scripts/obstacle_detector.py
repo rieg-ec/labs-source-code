@@ -3,6 +3,7 @@
 import rospy
 from std_msgs.msg import String, Float64
 from sensor_msgs.msg import Image
+import cv2
 from cv_bridge import CvBridge
 from sound_play.libsoundplay import SoundClient
 import numpy as np
@@ -44,7 +45,7 @@ class ObstacleDetector:
     def _image_process(self, image: Image) -> None:
         # Image dimension is 480 (fila), 640 (columnas)
         # With self.bridge we convert the depth image to a matrix.
-        
+
         self.current_image = np.asarray(
             self.bridge.imgmsg_to_cv2(image, '32FC1'))
         self.current_image_left = self.current_image[:, :210]
@@ -53,12 +54,12 @@ class ObstacleDetector:
 
         ## CONTROL PASILLO ##
         self.wall_distance_publish()
-            
+
         ## REPORTE OBSTACULOS ##
         self.obstacle_changes()
 
     def obstacle_changes(self):
-        distance = 5
+        distance = 1.2
         if np.mean(np.mean(self.current_image_center)) < distance:
             # we take the mean of the mean
             # because the mean of a matrix is a vector
@@ -80,27 +81,25 @@ class ObstacleDetector:
     def wall_distance_publish(self):
         if self.obstacle_pos == "free":
             return
-        if np.isnan( np.mean( np.mean( self.current_image_left ) ) ):
+        if np.isnan(np.mean(np.mean(self.current_image_left))):
             self.accurate_occupancy_state_publisher.publish(
-                Float64( 3.0 )
+                Float64(3.0)
             )
-       
-        elif np.isnan( np.mean( np.mean( self.current_image_right ) ) ):
+
+        elif np.isnan(np.mean(np.mean(self.current_image_right))):
             self.accurate_occupancy_state_publisher.publish(
-                Float64( -3.0 )
+                Float64(-3.0)
             )
 
         else:
-            diferencia = Float64( np.mean(np.mean(self.current_image_right)) - np.mean(np.mean(self.current_image_left)) )
+            diferencia = Float64(np.mean(
+                np.mean(self.current_image_right)) - np.mean(np.mean(self.current_image_left)))
             self.accurate_occupancy_state_publisher.publish(
                 diferencia
             )
 
-
-
     def publish_occupancy(self) -> None:
         while not rospy.is_shutdown():
-            rospy.loginfo(self.obstacle_pos)
             self.occupancy_state_publisher.publish(self.obstacle_pos)
             rospy.Rate(5).sleep()
 

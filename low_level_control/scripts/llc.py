@@ -89,7 +89,7 @@ class NavPID:
             )
 
             velocity = Twist()
-            velocity.angular.z = self.ang_speed * get_state()[0]
+            velocity.angular.z = self.ang_speed
 
             self.velocity_publisher.publish(velocity)
 
