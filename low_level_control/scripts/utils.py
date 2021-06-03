@@ -15,7 +15,7 @@ def box_mean_error(
     real = np.array([(0, 0) for _ in range(len(bl_corners_odom))])
 
     mean_error = np.around(np.sum(np.linalg.norm(
-        bl_corners_odom-real))/real.shape[0], 2)
+        bl_corners_odom-real))/bl_corners_odom.shape[0], 2)
 
     return mean_error
 
