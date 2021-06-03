@@ -53,7 +53,7 @@ class NavPID:
         self.ERROR_TOLERANCE = 0.01
 
     def _controlled_forward(self, goal_pos_lin: float, axis: str) -> None:
-        def get_state():
+        def get_state() -> float:
             if axis == 'y':
                 return self.odom_position.position.y
             else:
