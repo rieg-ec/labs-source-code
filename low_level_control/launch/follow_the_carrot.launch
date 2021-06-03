@@ -1,0 +1,17 @@
+<launch>
+  <include file="$(find very_simple_robot_simulator)/launch/minimal_simulator.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/openni_simulator.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/world_state.launch" />
+
+  <node name="pid_navigation" pkg="low_level_control" type="follow_the_carrot.py" output="screen"/>
+  <node name="path_reader" pkg="low_level_control" type="path_reader.py" output="screen"/>
+
+  <node name="angular_controller" pkg="pid" type="controller" output="screen" >
+    <param name="Kp" value="2" />
+    <param name="Kd" value="0.1" />
+    <param name="upper_limit" value="2" />
+    <param name="lower_limit" value="-2" />
+    <param name="windup_limit" value="10" />
+  </node>
+
+</launch>
