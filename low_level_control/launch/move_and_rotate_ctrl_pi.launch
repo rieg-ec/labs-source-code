@@ -1,0 +1,32 @@
+<launch>
+  <include file="$(find very_simple_robot_simulator)/launch/minimal_simulator.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/openni_simulator.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/world_state.launch" />
+
+  <node name="pid_navigation" pkg="low_level_control" type="llc.py" output="screen"/>
+  <node name="file_reader" pkg="low_level_control" type="file_reader.py" output="screen"/>
+  <node name="obstacle_detector" pkg="low_level_control" type="obstacle_detector.py" output="screen" />
+
+  <node name="angular_controller" pkg="pid" type="controller" ns="pid_angular" output="screen" >
+    <param name="Kp" value="0.5" />
+    <param name="Ki" value="0.005" />
+    <param name="upper_limit" value="0.7" />
+    <param name="lower_limit" value="-07" />
+    <param name="windup_limit" value="10" />
+  </node>
+
+  <node name="linear_controller" pkg="pid" type="controller" ns="pid_linear" output="screen" >
+    <param name="Kp" value="0.5" />
+    <param name="Ki" value="0.005" />
+    <param name="upper_limit" value="0.0" />
+    <param name="lower_limit" value="-0.3" />
+    <param name="windup_limit" value="10" />
+  </node>
+
+
+  <node name="rqt_plot_angular" pkg="rqt_plot" type="rqt_plot" 
+        args="/pid_angular/control_effort/data /pid_angular/state/data /pid_angular/setpoint/data\
+              /pid_linear/control_effort/data /pid_linear/state/data /pid_linear/setpoint/data" 
+  />
+
+</launch>
