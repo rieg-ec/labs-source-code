@@ -1,8 +1,0 @@
-<launch>
-  <include file="$(find very_simple_robot_simulator)/launch/minimal_simulator.launch" />
-  <include file="$(find very_simple_robot_simulator)/launch/openni_simulator.launch" />
-  <include file="$(find very_simple_robot_simulator)/launch/world_state.launch" />
-
-  <node name="dead_reckoning_nav" pkg="action_and_perception" type="dead_reckoning_nav.py" output="screen"/>
-  <node name="file_reader" pkg="action_and_perception" type="file_reader.py" output="screen"/>
-</launch>

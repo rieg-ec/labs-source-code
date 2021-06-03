@@ -44,7 +44,7 @@ class ObstacleDetector:
     def _image_process(self, image: Image) -> None:
         # Image dimension is 480 (fila), 640 (columnas)
         # With self.bridge we convert the depth image to a matrix.
-        self.distance = 2
+        
         self.current_image = np.asarray(
             self.bridge.imgmsg_to_cv2(image, '32FC1'))
         self.current_image_left = self.current_image[:, :210]
@@ -58,25 +58,28 @@ class ObstacleDetector:
         self.obstacle_changes()
 
     def obstacle_changes(self):
-        if np.mean(np.mean(self.current_image_center)) < self.distance:
+        distance = 5
+        if np.mean(np.mean(self.current_image_center)) < distance:
             # we take the mean of the mean
             # because the mean of a matrix is a vector
             # and the mean of a vector is a number.
             self.obstacle_pos = "obstacle_center"
 
-        elif np.mean(np.mean(self.current_image_left)) < self.distance:
+        elif np.mean(np.mean(self.current_image_left)) < distance:
             self.obstacle_pos = "obstacle_left"
 
-        elif np.mean(np.mean(self.current_image_right)) < self.distance:
+        elif np.mean(np.mean(self.current_image_right)) < distance:
             self.obstacle_pos = "obstacle_right"
 
-        elif (np.mean(np.mean(self.current_image_left)) >= self.distance and
-              np.mean(np.mean(self.current_image_center)) >= self.distance and
-              np.mean(np.mean(self.current_image_center)) >= self.distance
+        elif (np.mean(np.mean(self.current_image_left)) >= distance and
+              np.mean(np.mean(self.current_image_center)) >= distance and
+              np.mean(np.mean(self.current_image_center)) >= distance
               ):
             self.obstacle_pos = "free"
 
     def wall_distance_publish(self):
+        if self.obstacle_pos == "free":
+            return
         if np.isnan( np.mean( np.mean( self.current_image_left ) ) ):
             self.accurate_occupancy_state_publisher.publish(
                 Float64( 3.0 )

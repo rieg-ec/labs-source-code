@@ -3,6 +3,8 @@
   <node name="obstacle_detector" pkg="low_level_control" type="obstacle_detector.py" output="screen"/>
   <node name="hall_navigation" pkg="low_level_control" type="navegar_pasillo.py" output="screen"/>
 
-  <include file="$(find very_simple_robot_simulator)/launch/run_all.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/minimal_simulator.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/openni_simulator.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/world_state.launch" />
 
 </launch>

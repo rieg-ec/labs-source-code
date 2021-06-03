@@ -15,13 +15,8 @@ class HallNavigation:
     def __init__(self) -> None:
         rospy.Subscriber('/wall_distance', Float64,
                          self.control_proporcional)
-        # rospy.Subscriber('/occupancy_state', String,
-        #                  self.occupancy_changes)
         self.velocity_publisher = rospy.Publisher(
             '/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=1)
-
-        self.real_positions: List[Tuple[float, float]] = []
-        self.odom_positions: List[Tuple[float, float]] = []
 
         # Constante 
         self.kp = 0.7
@@ -35,8 +30,6 @@ class HallNavigation:
 
         self.referencia: float = 0.0
 
-        self.occupancy_state: str = "free"
-
     def control_proporcional(self, diferencia_obstaculos):
         error = (self.referencia - diferencia_obstaculos.data)
         self.ang_speed = self.kp * error
@@ -45,7 +38,6 @@ class HallNavigation:
         self.velocity.linear.x = self.lin_speed
 
         self.velocity_publisher.publish(self.velocity)
-    
 
 if __name__ == '__main__':
     rospy.init_node('hall_navigation', anonymous=True)
