@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from sound_play.libsoundplay import SoundClient
@@ -22,6 +22,9 @@ class ObstacleDetector:
         self.occupancy_state_publisher = rospy.Publisher(
             '/occupancy_state', String, queue_size=1)
 
+        self.accurate_occupancy_state_publisher = rospy.Publisher(
+            '/wall_distance', Float64, queue_size=1)
+
         self.bridge = CvBridge()
         self._obstacle_pos: str = "free"
         self.soundhandle = SoundClient()
@@ -41,13 +44,21 @@ class ObstacleDetector:
     def _image_process(self, image: Image) -> None:
         # Image dimension is 480 (fila), 640 (columnas)
         # With self.bridge we convert the depth image to a matrix.
-        distance = 2
+        
         self.current_image = np.asarray(
             self.bridge.imgmsg_to_cv2(image, '32FC1'))
         self.current_image_left = self.current_image[:, :210]
-        self.current_image_center = self.current_image[:, 211:420]
-        self.current_image_right = self.current_image[:, 421:640]
+        self.current_image_center = self.current_image[:, 210:420]
+        self.current_image_right = self.current_image[:, 420:640]
 
+        ## CONTROL PASILLO ##
+        self.wall_distance_publish()
+            
+        ## REPORTE OBSTACULOS ##
+        self.obstacle_changes()
+
+    def obstacle_changes(self):
+        distance = 5
         if np.mean(np.mean(self.current_image_center)) < distance:
             # we take the mean of the mean
             # because the mean of a matrix is a vector
@@ -65,6 +76,27 @@ class ObstacleDetector:
               np.mean(np.mean(self.current_image_center)) >= distance
               ):
             self.obstacle_pos = "free"
+
+    def wall_distance_publish(self):
+        if self.obstacle_pos == "free":
+            return
+        if np.isnan( np.mean( np.mean( self.current_image_left ) ) ):
+            self.accurate_occupancy_state_publisher.publish(
+                Float64( 3.0 )
+            )
+       
+        elif np.isnan( np.mean( np.mean( self.current_image_right ) ) ):
+            self.accurate_occupancy_state_publisher.publish(
+                Float64( -3.0 )
+            )
+
+        else:
+            diferencia = Float64( np.mean(np.mean(self.current_image_right)) - np.mean(np.mean(self.current_image_left)) )
+            self.accurate_occupancy_state_publisher.publish(
+                diferencia
+            )
+
+
 
     def publish_occupancy(self) -> None:
         while not rospy.is_shutdown():
