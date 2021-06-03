@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 
 import rospy
-import math
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose, PoseArray, Point
-from nav_msgs.msg import Odometry
-from tf.transformations import euler_from_quaternion
-from typing import Tuple, List
-from utils import calculate_ang, plot_results
+from geometry_msgs.msg import Twist
 
 
 class HallNavigation:
@@ -18,7 +13,7 @@ class HallNavigation:
         self.velocity_publisher = rospy.Publisher(
             '/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=1)
 
-        # Constante 
+        # Constante
         self.kp = 0.7
 
         self.lin_speed: float = 0.0
@@ -39,7 +34,9 @@ class HallNavigation:
 
         self.velocity_publisher.publish(self.velocity)
 
+
 if __name__ == '__main__':
     rospy.init_node('hall_navigation', anonymous=True)
     dead_reck_nav = HallNavigation()
     rospy.spin()
+
