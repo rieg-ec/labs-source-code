@@ -2,12 +2,12 @@
 
 import rospy
 import math
-from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose, PoseArray, Point
+from std_msgs.msg import Float64
+from geometry_msgs.msg import Twist, Pose, Point
 from nav_msgs.msg import Odometry, Path
-from typing import Tuple, List
+from typing import List
 from utils import (
-    euclidean_distance_2d, get_yaw_fix, calculate_ang_fix,
+    euclidean_distance_2d, orientation_to_yaw, ang_error,
     shortest_line_angle, plot_path
 )
 
@@ -40,7 +40,7 @@ class FollowTheCarrot:
         self.path_positions: List[Point] = []
 
     @property
-    def carrot(self):
+    def carrot(self) -> Point:
         gap = 10
         if self.closest_point_index < len(self.path_positions) - gap - 1:
             return self.path_positions[self.closest_point_index + gap]
@@ -52,18 +52,15 @@ class FollowTheCarrot:
             ) < 0.05
         ):
             self.lin_speed = 0
-            print(self.odom_position)
-            max([i.y for i in self.path_positions])
 
         return self.path_positions[self.closest_point_index]
 
-    def _odom_listener_cb(self, odom_pos: Odometry) -> None:
-        self.odom_positions.append(odom_pos.pose.pose)
-        self.odom_position = odom_pos.pose.pose
+    def _odom_listener_cb(self, odom: Odometry) -> None:
+        self.odom_positions.append(odom.pose.pose)
+        self.odom_position = odom.pose.pose
 
     def update_closest_point(self) -> None:
         """ returns index of closest point to current position in path_positions """
-        # TODO: optimize
 
         if self.path_positions:
             for i, pos in enumerate(self.path_positions):
@@ -74,30 +71,26 @@ class FollowTheCarrot:
                 ):
                     self.closest_point_index = i
 
-            print(
-                f'closes point index: {self.closest_point_index}, pos: {self.odom_position.position.x}, {self.odom_position.position.y}')
-
     def _path_cb(self, nav_path: Path) -> None:
         self.path_positions.extend([i.pose.position for i in nav_path.poses])
-        plot_path([(i.x, i.y) for i in self.path_positions], 's')
 
-    def spin(self):
+    def spin(self) -> None:
         while not self.path_positions:
             rospy.Rate(10).sleep()
 
         self.ang_setpoint_publisher.publish(0)
 
-        while not rospy.is_shutdown():
+        while not rospy.is_shutdown() and self.lin_speed:
             self.update_closest_point()
 
             target_ang = shortest_line_angle(
                 self.odom_position.position, self.carrot
             )
 
-            current_ang = get_yaw_fix(self.odom_position.orientation)
+            current_ang = orientation_to_yaw(self.odom_position.orientation)
 
             self.ang_state_publisher.publish(
-                calculate_ang_fix(current_ang, target_ang))
+                ang_error(current_ang, target_ang))
 
             velocity = Twist()
             velocity.angular.z = self.ang_speed
@@ -106,6 +99,9 @@ class FollowTheCarrot:
             self.velocity_publisher.publish(velocity)
 
             rospy.Rate(10).sleep()
+
+        plot_path([(i.position.x, i.position.y) for i in self.odom_positions],
+                  [(i.x, i.y) for i in self.path_positions])
 
 
 if __name__ == '__main__':

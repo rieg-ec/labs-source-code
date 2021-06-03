@@ -8,7 +8,7 @@ from os import path
 
 rospack = rospkg.RosPack()
 
-path_filename = 'path_sin.txt'
+path_filename = 'path_line.txt'
 
 filepath = path.join(rospack.get_path(
     'low_level_control'), 'scripts', 'paths', path_filename)
