@@ -23,7 +23,7 @@ def orientation_to_yaw(orientation: Pose.orientation) -> float:
         return yaw
 
 
-def ang_error(current: float, target: float) -> float:
+def ang_dif(current: float, target: float) -> float:
     if target > current:
         if target - current < math.pi:
             return target - current
@@ -54,11 +54,11 @@ def add_90_degrees(angle: float, dir: int) -> float:
 
 
 if __name__ == "__main__":
-    assert ang_error(math.pi*3/4, math.pi/4) == -math.pi/2
-    assert ang_error(math.pi, math.pi/2) == -math.pi/2
-    assert ang_error(-math.pi/4, math.pi/4) == math.pi/2
-    assert ang_error(math.pi/2, 0) == -math.pi/2
-    assert ang_error(-math.pi*3/4, 0) == math.pi*3/4
+    assert ang_dif(math.pi*3/4, math.pi/4) == -math.pi/2
+    assert ang_dif(math.pi, math.pi/2) == -math.pi/2
+    assert ang_dif(-math.pi/4, math.pi/4) == math.pi/2
+    assert ang_dif(math.pi/2, 0) == -math.pi/2
+    assert ang_dif(-math.pi*3/4, 0) == math.pi*3/4
 
     assert add_90_degrees(math.pi/2, -1) == 0
     assert add_90_degrees(0, 1) == math.pi/2
