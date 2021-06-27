@@ -3,7 +3,6 @@
 import rospy
 import math
 import numpy as np
-import pandas as pd
 from std_msgs.msg import String, Float64
 from geometry_msgs.msg import Twist, Pose, PoseArray
 #!/usr/bin/env python3
@@ -19,12 +18,26 @@ class ParticleFilter:
         pass
 
     def sample_motion(self, action, particle):
-        particle.mover(1, 1, 0)
+        
+        if action == 'adelante':
+            avance_x = np.cos(particle.teta)*1
+            avance_y = np.sin(particle.teta)*1
+            particle.mover( avance_x, avance_y, 0)
+        
+        elif action == 'derecha':
+            teta_change = - np.pi*(90/180)
+            particle.mover( 0, 0, teta_change )
+
+        elif action == 'izquiera':
+            teta_change = np.pi*(90/180)
+            particle.mover( 0, 0, teta_change )
+
         return particle
 
     def localization(self, Particles, action, measures, maparray):
         NewParticlesToFilter = []
         NewParticles = []
+
         for particle in Particles:
             x = self.sample_motion(action, particle)
             w = self.measurement_model(measures, x, maparray)
@@ -44,13 +57,19 @@ class ParticleFilter:
 class Particle():
 
     def __init__(self, eje_x, eje_y, teta):
-
         self.posx = eje_x
         self.posy = eje_y
         self.teta = teta
 
     def mover( self, change_in_x, change_in_y, change_in_teta ):
-        self.posx += change_in_x
-        self.posy += change_in_y
+        
+        if self.posx < 269 and self.posx >= 0:
+            self.posx += change_in_x
+        if self.posy < 269 and self.posy >= 0:
+            self.posy += change_in_y
+        
         self.teta += change_in_teta
+
+
+
         return
