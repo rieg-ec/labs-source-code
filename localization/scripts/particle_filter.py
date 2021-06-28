@@ -63,13 +63,11 @@ class Particle():
 
     def mover( self, change_in_x, change_in_y, change_in_teta ):
         
-        if self.posx < 269 and self.posx >= 0:
-            self.posx += change_in_x
-        if self.posy < 269 and self.posy >= 0:
-            self.posy += change_in_y
+        # if self.posx < 269 and self.posx >= 0:
+        #     self.posx += change_in_x
+        # if self.posy < 269 and self.posy >= 0:
+        #     self.posy += change_in_y
         
-        self.teta += change_in_teta
-
-
+        # self.teta += change_in_teta
 
         return
