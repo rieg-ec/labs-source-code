@@ -53,9 +53,9 @@ class DecisionTaker:
 
             x = rm.randint(0, 269)
             y = rm.randint(0, 269)
-            if self.map_array[x][y] < 205 or self.map_array[x][y] == 255:
+            if int(self.map_array[x][y]) < 255:
                 continue
-            else: 
+            else:
                 self.particles.append( Particle(x, y, teta_inicial) )
         return
         
