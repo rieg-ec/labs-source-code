@@ -66,4 +66,10 @@ if __name__ == "__main__":
     assert add_90_degrees(math.pi, -1) == math.pi/2
     assert add_90_degrees(math.pi, 1) == math.pi * 3/2
     assert add_90_degrees(math.pi * 3/2, 1) == 0
+    assert add_90_degrees(math.pi/2, 1) == math.pi
+
+    assert ang_dif(0, math.pi) == math.pi
+    assert ang_dif(math.pi, 0) == -math.pi
+    assert ang_dif(math.pi/2, -math.pi/2) == -math.pi
+
     print('tests passed')
