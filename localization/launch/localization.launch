@@ -3,6 +3,7 @@
   <include file="$(find very_simple_robot_simulator)/launch/lidar_simulator.launch" />
 
   <node name="controller" pkg="localization" type="controller.py" output="screen"/>
+  <node name="particle_filter" pkg="localization" type="particle_filter.py" output="screen"/>
 
   <node name="angular_controller" pkg="pid" type="controller" output="screen" >
     <param name="Kp" value="0.75" />
