@@ -1,73 +1,66 @@
 #!/usr/bin/env python3
+import random
+from os import path
 
+import cv2
 import rospy
-import math
-import numpy as np
-from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose, PoseArray
-#!/usr/bin/env python3
-
+import rospkg
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import LaserScan
 
-import random as rm
+from utils import orientation_to_yaw
+from localization import monte_carlo_localization, Particle
+
+
+rospack = rospkg.RosPack()
+
+MAP_PATH = filepath = path.join(rospack.get_path(
+    'localization'), 'maps', 'map.pgm')
+
+map_array = cv2.imread(MAP_PATH, cv2.IMREAD_GRAYSCALE)
 
 
 class ParticleFilter:
 
-    def __init__(self):
-        pass
+    def __init__(self, n_particles: int) -> None:
+        self.create_particles(n_particles)
 
-    def sample_motion(self, action, particle):
-        
-        if action == 'adelante':
-            avance_x = np.cos(particle.teta)*1
-            avance_y = np.sin(particle.teta)*1
-            particle.mover( avance_x, avance_y, 0)
-        
-        elif action == 'derecha':
-            teta_change = - np.pi*(90/180)
-            particle.mover( 0, 0, teta_change )
+        rospy.Subscriber('/scan', LaserScan,
+                         lambda v: setattr(self, 'scan', v.intensities))
+        rospy.Subscriber('/odom', Odometry, self.localization_cb)
 
-        elif action == 'izquiera':
-            teta_change = np.pi*(90/180)
-            particle.mover( 0, 0, teta_change )
+    def localization_cb(self, odom: Odometry) -> None:
+        if not hasattr(self, 'last_pose'):
+            self.last_pose = odom.pose.pose
+            return
 
-        return particle
+        if not hasattr(self, 'scan') or not hasattr(self, 'particles'):
+            return
 
-    def localization(self, Particles, action, measures, maparray):
-        NewParticlesToFilter = []
-        NewParticles = []
+        dx = self.last_pose.position.x - odom.pose.pose.position.x
+        dy = self.last_pose.position.y - odom.pose.pose.position.y
+        dteta = (
+            orientation_to_yaw(self.last_pose.orientation) -
+            orientation_to_yaw(odom.pose.pose.orientation)
+        )
 
-        for particle in Particles:
-            x = self.sample_motion(action, particle)
-            w = self.measurement_model(measures, x, maparray)
-            w_to_list = int((w)*10)
-            for i in range(w_to_list):
-                NewParticlesToFilter.append(x)
+        self.particles = monte_carlo_localization(
+            self.particles, [dx, dy, dteta], self.scan, map_array)
 
-        for i in range(len(Particles)):
-            index = rm.randint(0, len(NewParticlesToFilter) - 1)
-            NewParticles.append(NewParticlesToFilter[index])
+    def create_particles(self, number_of_particles: int) -> None:
+        self.particles = []
+        initial_theta = 0
+        for _ in range(number_of_particles):
+            x = random.randint(0, 269)
+            y = random.randint(0, 269)
+            while map_array[x][y] < 205 or map_array[x][y] == 255:
+                x = random.randint(0, 269)
+                y = random.randint(0, 269)
 
-        return NewParticles
+            self.particles.append(Particle(x, y, initial_theta))
 
-    def measurement_model(self, measures, particle, maparray):
-        return rm.random()
 
-class Particle():
-
-    def __init__(self, eje_x, eje_y, teta):
-        self.posx = eje_x
-        self.posy = eje_y
-        self.teta = teta
-
-    def mover( self, change_in_x, change_in_y, change_in_teta ):
-        
-        # if self.posx < 269 and self.posx >= 0:
-        #     self.posx += change_in_x
-        # if self.posy < 269 and self.posy >= 0:
-        #     self.posy += change_in_y
-        
-        # self.teta += change_in_teta
-
-        return
+if __name__ == '__main__':
+    rospy.init_node('particle_filter', anonymous=True)
+    particle_filter = ParticleFilter(1000)
+    rospy.spin()
