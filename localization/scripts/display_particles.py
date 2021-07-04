@@ -15,7 +15,7 @@ def prepare_image(pose_array: list) -> None:
     show(img_to_show)
 
 
-def show(img_to_show):
+def show(img_to_show) -> None:
     cv2.imshow("image", img_to_show)
     if cv2.waitKey(25) & 0xFF == ord('q'):
         return
@@ -27,4 +27,3 @@ if __name__ == '__main__':
     print('Escuchando para printear...')
 
     rospy.spin()
-

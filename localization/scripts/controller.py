@@ -48,7 +48,7 @@ class NavController:
 
         self.obstacles = []
 
-    def lidar_cb(self, depth_array):
+    def lidar_cb(self, depth_array: LaserScan) -> None:
         depth_limit = 0.45
         lin_speed = 0.1
 
@@ -65,7 +65,7 @@ class NavController:
     def odom_listener(self, odom: Odometry) -> None:
         self.odom_position = odom.pose.pose
 
-    def move(self):
+    def move(self) -> None:
         while not self.localization:
             if 'center' not in self.obstacles:
                 if random.random() < 0.99:

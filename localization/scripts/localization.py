@@ -6,7 +6,7 @@ from typing import List
 
 
 class Particle:
-    def __init__(self, x: float, y: float, theta: float):
+    def __init__(self, x: float, y: float, theta: float) -> None:
         self.x = x
         self.y = y
         self.theta = theta
