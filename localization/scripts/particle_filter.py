@@ -39,13 +39,13 @@ class ParticleFilter:
 
         dx = self.last_pose.position.x - odom.pose.pose.position.x
         dy = self.last_pose.position.y - odom.pose.pose.position.y
-        dteta = (
-            orientation_to_yaw(self.last_pose.orientation) -
-            orientation_to_yaw(odom.pose.pose.orientation)
+        dtheta = (
+            orientation_to_yaw(odom.pose.pose.orientation) -
+            orientation_to_yaw(self.last_pose.orientation)
         )
 
         self.particles = monte_carlo_localization(
-            self.particles, [dx, dy, dteta], self.scan, map_array)
+            self.particles, [dx, dy, dtheta], self.scan, map_array)
 
     def create_particles(self, number_of_particles: int) -> None:
         self.particles = []
