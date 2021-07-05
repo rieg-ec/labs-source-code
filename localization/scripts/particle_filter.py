@@ -1,29 +1,28 @@
 #!/usr/bin/env python3
 import random
-from os import path
 
-import cv2
 import rospy
-import rospkg
-from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry, OccupancyGrid
 from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import PoseArray
 
 from utils import orientation_to_yaw
 from localization import monte_carlo_localization, Particle
 
 
-rospack = rospkg.RosPack()
-
-MAP_PATH = filepath = path.join(rospack.get_path(
-    'localization'), 'maps', 'map.pgm')
-
-map_array = cv2.imread(MAP_PATH, cv2.IMREAD_GRAYSCALE)
-
-
 class ParticleFilter:
 
     def __init__(self, n_particles: int) -> None:
-        self.create_particles(n_particles)
+        self.n_particles = n_particles
+
+        self.velocity_publisher = rospy.Publisher(
+            '/localization', PoseArray, queue_size=1)
+
+        rospy.Subscriber(
+            '/map', OccupancyGrid,
+            lambda m: setattr(self, 'map_grid',
+                              [m.data[i*270:i*270+270] for i in range(270)])
+        )
 
         rospy.Subscriber('/scan', LaserScan,
                          lambda v: setattr(self, 'scan', v.intensities))
@@ -34,8 +33,14 @@ class ParticleFilter:
             self.last_pose = odom.pose.pose
             return
 
-        if not hasattr(self, 'scan') or not hasattr(self, 'particles'):
+        if (
+            not hasattr(self, 'scan')
+            or not hasattr(self, 'map_grid')
+        ):
             return
+
+        if not hasattr(self, 'particles'):
+            self.create_particles(self.n_particles)
 
         dx = self.last_pose.position.x - odom.pose.pose.position.x
         dy = self.last_pose.position.y - odom.pose.pose.position.y
@@ -45,7 +50,9 @@ class ParticleFilter:
         )
 
         self.particles = monte_carlo_localization(
-            self.particles, [dx, dy, dtheta], self.scan, map_array)
+            self.particles, [dx, dy, dtheta], self.scan, self.map_grid)
+
+        self.last_pose = odom.pose.pose
 
     def create_particles(self, number_of_particles: int) -> None:
         self.particles = []
@@ -53,7 +60,7 @@ class ParticleFilter:
         for _ in range(number_of_particles):
             x = random.randint(0, 269)
             y = random.randint(0, 269)
-            while map_array[x][y] < 205 or map_array[x][y] == 255:
+            while self.map_grid[x][y] != 100:
                 x = random.randint(0, 269)
                 y = random.randint(0, 269)
 
