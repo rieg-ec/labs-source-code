@@ -23,6 +23,14 @@ def orientation_to_yaw(orientation: Pose.orientation) -> float:
         return yaw
 
 
+def yaw_to_orientation(yaw: float) -> Pose.orientation:
+    if yaw < 0:
+        yaw = 2*math.pi + yaw
+
+    quaternion = quaternion_from_euler(0, 0, yaw)
+    return quaternion
+
+
 def ang_dif(current: float, target: float) -> float:
     if target > current:
         if target - current < math.pi:

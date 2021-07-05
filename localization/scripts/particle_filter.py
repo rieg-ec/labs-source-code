@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import random
+import numpy as np
 
 import rospy
 from nav_msgs.msg import Odometry, OccupancyGrid
 from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import PoseArray
+from geometry_msgs.msg import PoseArray, Point, Quaternion
 
-from utils import orientation_to_yaw
+from utils import orientation_to_yaw, yaw_to_orientation
 from localization import monte_carlo_localization, Particle
 
 
@@ -15,13 +16,13 @@ class ParticleFilter:
     def __init__(self, n_particles: int) -> None:
         self.n_particles = n_particles
 
-        self.velocity_publisher = rospy.Publisher(
-            '/localization', PoseArray, queue_size=1)
+        self.localization_publisher = rospy.Publisher(
+            '/localization', PoseArray)
 
         rospy.Subscriber(
             '/map', OccupancyGrid,
             lambda m: setattr(self, 'map_grid',
-                              [m.data[i*270:i*270+270] for i in range(270)])
+                              np.reshape(m.data, (270, 270)).T)
         )
 
         rospy.Subscriber('/scan', LaserScan,
@@ -64,7 +65,10 @@ class ParticleFilter:
                 x = random.randint(0, 269)
                 y = random.randint(0, 269)
 
-            self.particles.append(Particle(x, y, initial_theta))
+            particle = Particle(
+                Point(x, y, 0), Quaternion(*yaw_to_orientation(initial_theta)))
+
+            self.particles.append(particle)
 
 
 if __name__ == '__main__':

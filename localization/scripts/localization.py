@@ -2,29 +2,43 @@
 import rospy
 import math
 import random
+import numpy as np
+
+from geometry_msgs.msg import Pose, Point, Quaternion
+
 from typing import List
 
+from utils import yaw_to_orientation, orientation_to_yaw
 
-class Particle:
-    def __init__(self, x: float, y: float, theta: float) -> None:
-        self.x = x
-        self.y = y
-        self.theta = theta
+
+class Particle(Pose):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    @property
+    def yaw(self):
+        return orientation_to_yaw(self.orientation)
+
+    @yaw.setter
+    def yaw(self, value):
+        yaw = orientation_to_yaw(self.orientation)
+        yaw += value
+        self.orientation = Quaternion(*yaw_to_orientation(value))
 
     def move(self, dx: float, dy: float, dtheta: float) -> None:
-        if self.x < 269 and self.x >= 0:
-            self.x += dx
-        if self.y < 269 and self.y >= 0:
-            self.y += dy
+        if self.position.x < 269 and self.position.x >= 0:
+            self.position.x += dx
+        if self.position.y < 269 and self.position.y >= 0:
+            self.position.y += dy
 
-        self.theta += dtheta
+        self.yaw += dtheta
 
 
 def sample_motion_model(action: list, particle: Particle) -> None:
     particle.move(*action)
 
 
-def likelihood_fields(measurement: list, particle: Particle, map_array: list) -> float:
+def likelihood_fields(measurement: list, particle: Particle, map_array: np.array) -> float:
     return random.random() * 3
 
 
@@ -32,7 +46,7 @@ def monte_carlo_localization(
     particles: List[Particle],
     action: list,
     measurement: list,
-    map_array: list,
+    map_array: np.array,
 ) -> List[Particle]:
 
     weights = []
