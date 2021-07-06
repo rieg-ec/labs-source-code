@@ -51,7 +51,20 @@ class NavController:
         self.obstacles = []
 
     def localization_cb(self, particles: PoseArray) -> None:
-        print(particles.poses[1:4])
+        sum_x = sum([particle.position.x for particle in particles])
+        sum_y = sum([particle.position.y for particle in particles])
+
+        mc_x = sum_x / len(particles)
+        mc_y = sum_y / len(particles)
+
+        dist_x = 0
+        dist_y = 0
+
+        for particle in particles:
+            dist_x += abs(particle.position.x - mc_x)
+            dist_y += abs(particle.position.y - mc_y)
+
+        print(dist_x + dist_y)
 
     def lidar_cb(self, depth_array: LaserScan) -> None:
         depth_limit = 0.45
