@@ -10,6 +10,8 @@ from geometry_msgs.msg import PoseArray, Point, Quaternion
 from utils import orientation_to_yaw, yaw_to_orientation
 from localization import monte_carlo_localization, Particle
 
+from display_particles import prepare_image
+
 
 class ParticleFilter:
 
@@ -17,7 +19,7 @@ class ParticleFilter:
         self.n_particles = n_particles
 
         self.localization_publisher = rospy.Publisher(
-            '/localization', PoseArray)
+            '/localization', PoseArray, queue_size = 1)
 
         rospy.Subscriber(
             '/map', OccupancyGrid,
@@ -37,7 +39,8 @@ class ParticleFilter:
                 or not hasattr(self, 'map_grid')
                 or not hasattr(self, 'odom')
             ):
-                return
+                rospy.Rate(5).sleep()
+                continue
 
             if not hasattr(self, 'last_pose'):
                 self.last_pose = self.odom
@@ -45,10 +48,10 @@ class ParticleFilter:
             if not hasattr(self, 'particles'):
                 self.create_particles(self.n_particles)
 
-            dx = self.last_pose.position.x - odom.pose.pose.position.x
-            dy = self.last_pose.position.y - odom.pose.pose.position.y
+            dx = self.last_pose.position.x - self.odom.position.x
+            dy = self.last_pose.position.y - self.odom.position.y
             dtheta = (
-                orientation_to_yaw(odom.pose.pose.orientation) -
+                orientation_to_yaw(self.odom.orientation) -
                 orientation_to_yaw(self.last_pose.orientation)
             )
 
@@ -81,6 +84,6 @@ class ParticleFilter:
 
 if __name__ == '__main__':
     rospy.init_node('particle_filter', anonymous=True)
-    particle_filter = ParticleFilter(1000)
+    particle_filter = ParticleFilter(50)
     particle_filter.localization()
     rospy.spin()

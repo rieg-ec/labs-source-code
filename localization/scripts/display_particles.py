@@ -5,11 +5,15 @@ import cv2
 from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray
 
 
-def prepare_image(pose_array: list) -> None:
-    img_to_show = np.zeros((270, 270))
+def prepare_image(pose_array: PoseArray) -> None:
+    img_to_show = np.ones((270, 270))*255
 
-    for pose in pose_array:
-        img_to_show[int(pose.position.x), int(poseposition.y)] = 255
+    for pose in pose_array.poses:
+        img_to_show[int(pose.position.x), int(pose.position.y)] = 0
+        img_to_show[int(pose.position.x)-1, int(pose.position.y)+1] = 0
+        img_to_show[int(pose.position.x)+1, int(pose.position.y)-1] = 0
+        img_to_show[int(pose.position.x)-1, int(pose.position.y)] = 0
+        img_to_show[int(pose.position.x)+1, int(pose.position.y)] = 0
 
     img_to_show = img_to_show
 
@@ -30,3 +34,17 @@ if __name__ == '__main__':
     print('Escuchando para printear...')
 
     rospy.spin()
+
+# def prepare_image(pose_array: PoseArray) -> None:
+#     img_to_show = np.ones((270, 270), )*255
+#     backtorgb = cv2.cvtColor(gray,cv2.COLOR_GRAY2RGB)
+
+#     color = (255, 0, 0)
+#     for pose in pose_array.poses:
+#         img_to_show[int(pose.position.x), int(pose.position.y)] = (255, 0, 0)
+#         img_to_show[int(pose.position.x)-1, int(pose.position.y)+1] = (255, 0, 0)
+#         img_to_show[int(pose.position.x)+1, int(pose.position.y)-1] = (255, 0, 0)
+
+#     img_to_show = img_to_show
+
+#     show(img_to_show)

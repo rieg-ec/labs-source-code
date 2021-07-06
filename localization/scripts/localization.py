@@ -7,7 +7,6 @@ from scipy.stats import norm
 from scipy import spatial
 
 
-
 from geometry_msgs.msg import Pose, Point, Quaternion
 
 from typing import List
@@ -44,7 +43,7 @@ def sample_motion_model(action: list, particle: Particle) -> None:
 
 def likelihood_fields(measurement: list, particle: Particle, obstacle_coords: list) -> float:
     # return random.random() * 3
-    ponderador = 3
+    ponderador = 25
     angle_increment = 0.01745329238474369
     angle = -1.5707963705062866
     q = 1
@@ -60,15 +59,19 @@ def likelihood_fields(measurement: list, particle: Particle, obstacle_coords: li
         if z_k != z_max:
             # x_k es la posicion x del objeto que estamos mirando segun la posicion de la particula
             # que estamos mirando. lo mismo para y_k
-            obj_from_particle_x = particle.position.x + z_k * np.cos(particle.yaw + angle)
-            obj_from_particle_y = particle.position.y + z_k * np.sin(particle.yaw + angle)
+            obj_from_particle_x = particle.position.x + \
+                z_k * np.cos(particle.yaw + angle)
+            obj_from_particle_y = particle.position.y + \
+                z_k * np.sin(particle.yaw + angle)
 
-            dist, point_id = tree.query( [obj_from_particle_x, obj_from_particle_y] )
+            dist, point_id = tree.query(
+                [obj_from_particle_x, obj_from_particle_y])
             # print(f'distancia: {dist}')
 
-            q *= ( ponderador * stats.pdf(dist) )
+            q *= (ponderador * stats.pdf(dist))
 
-    return q
+    # print(f'q acumulator: {q*500000000000000000000000000}')
+    return q * 500
 
 def monte_carlo_localization(
     particles: List[Particle],
@@ -82,12 +85,11 @@ def monte_carlo_localization(
     for x in range(270):
         for y in range(270):
             if map_array[x][y] == 0:
-                obstacle_coords.append( (x, y) )
-
+                obstacle_coords.append((x, y))
+    
     weights = []
     largest_float = 0
 
-    
     for particle in particles:
         sample_motion_model(action, particle)
         w = likelihood_fields(measurement, particle, obstacle_coords)
@@ -95,8 +97,11 @@ def monte_carlo_localization(
         if len(str(w)[:2]) > largest_float:
             largest_float = len(str(w)[:2])
 
+    weights = [float(i)/max(weights) for i in weights]
+
     scale_factor = 10 ** largest_float
     weights = [int(w * scale_factor) for w in weights]
+    
 
     new_particles_weighted = []
     for idx, weight in enumerate(weights):
@@ -105,8 +110,7 @@ def monte_carlo_localization(
 
     new_particles = []
     for _ in range(len(particles)):
-        index = random.randint(0, len(new_particles_weighted))
+        index = random.randint(0, len(new_particles_weighted)-1)
         new_particles.append(new_particles_weighted[index])
 
-    print('localization finished')
     return new_particles
