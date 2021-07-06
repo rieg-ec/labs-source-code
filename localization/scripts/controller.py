@@ -51,8 +51,8 @@ class NavController:
         self.obstacles = []
 
     def localization_cb(self, particles: PoseArray) -> None:
-        sum_x = sum([particle.position.x for particle in particles])
-        sum_y = sum([particle.position.y for particle in particles])
+        sum_x = sum([particle.position.x for particle in particles.poses])
+        sum_y = sum([particle.position.y for particle in particles.poses])
 
         mc_x = sum_x / len(particles)
         mc_y = sum_y / len(particles)
