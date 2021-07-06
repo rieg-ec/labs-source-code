@@ -42,7 +42,7 @@ def sample_motion_model(action: list, particle: Particle) -> None:
     particle.move(*action)
 
 
-def likelihood_fields(measurement: list, particle: Particle, map_array: np.array) -> float:
+def likelihood_fields(measurement: list, particle: Particle, obstacle_coords: list) -> float:
     # return random.random() * 3
     ponderador = 3
     angle_increment = 0.01745329238474369
@@ -51,13 +51,6 @@ def likelihood_fields(measurement: list, particle: Particle, map_array: np.array
 
     sigma = 1.0
     stats = norm(0, sigma)
-
-    obstacle_coords = []
-
-    for x in range(270):
-        for y in range(270):
-            if map_array[x][y] == 0:
-                obstacle_coords.append( (x, y) )
 
     tree = spatial.cKDTree( obstacle_coords )
 
@@ -75,7 +68,6 @@ def likelihood_fields(measurement: list, particle: Particle, map_array: np.array
 
             q *= ( ponderador * stats.pdf(dist) )
 
-    print(f"Acumulador: {q}")
     return q
 
 def monte_carlo_localization(
@@ -85,12 +77,20 @@ def monte_carlo_localization(
     map_array: np.array,
 ) -> List[Particle]:
 
+    #for likelihood_fields_function
+    obstacle_coords = []
+    for x in range(270):
+        for y in range(270):
+            if map_array[x][y] == 0:
+                obstacle_coords.append( (x, y) )
+
     weights = []
     largest_float = 0
 
+    
     for particle in particles:
         sample_motion_model(action, particle)
-        w = likelihood_fields(measurement, particle, map_array)
+        w = likelihood_fields(measurement, particle, obstacle_coords)
         weights.append(w)
         if len(str(w)[:2]) > largest_float:
             largest_float = len(str(w)[:2])
@@ -105,7 +105,8 @@ def monte_carlo_localization(
 
     new_particles = []
     for _ in range(len(particles)):
-        index = random.randint(0, len(new_particles_weighted) - 1)
+        index = random.randint(0, len(new_particles_weighted))
         new_particles.append(new_particles_weighted[index])
 
+    print('localization finished')
     return new_particles
