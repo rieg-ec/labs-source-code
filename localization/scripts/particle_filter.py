@@ -37,7 +37,8 @@ class ParticleFilter:
                 or not hasattr(self, 'map_grid')
                 or not hasattr(self, 'odom')
             ):
-                return
+                rospy.Rate(5).sleep()
+                continue
 
             if not hasattr(self, 'last_pose'):
                 self.last_pose = self.odom
@@ -45,10 +46,10 @@ class ParticleFilter:
             if not hasattr(self, 'particles'):
                 self.create_particles(self.n_particles)
 
-            dx = self.last_pose.position.x - odom.pose.pose.position.x
-            dy = self.last_pose.position.y - odom.pose.pose.position.y
+            dx = self.last_pose.position.x - self.odom.position.x
+            dy = self.last_pose.position.y - self.odom.position.y
             dtheta = (
-                orientation_to_yaw(odom.pose.pose.orientation) -
+                orientation_to_yaw(self.odom.orientation) -
                 orientation_to_yaw(self.last_pose.orientation)
             )
 
