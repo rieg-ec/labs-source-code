@@ -3,6 +3,7 @@ import rospy
 import math
 import random
 import numpy as np
+from scipy.stats import norm
 
 from geometry_msgs.msg import Pose, Point, Quaternion
 
@@ -39,8 +40,34 @@ def sample_motion_model(action: list, particle: Particle) -> None:
 
 
 def likelihood_fields(measurement: list, particle: Particle, map_array: np.array) -> float:
-    return random.random() * 3
+    # return random.random() * 3
+    ponderador = 3
+    angle_increment = 0.01745329238474369
+    angle = -1.5707963705062866
+    q = 1
 
+    sigma = 1.0
+    stats = norm(0, sigma)
+    
+    for z_k in measurement:
+        angle += angle_increment
+        z_max = 4.0
+        if z_k != z_max:
+            # x_k es la posicion x del objeto que estamos mirando segun la posicion de la particula
+            # que estamos mirando. lo mismo para y_k
+            obj_from_particle_x = particle.position.x + z_k * np.cos(particle.yaw + angle)
+            obj_from_particle_y = particle.position.y + z_k * np.sin(particle.yaw + angle)
+            map_distances = []
+            for x in range(270):
+                for y in range(270):
+                    if map_array[x][y] == 100:
+                        dist = np.sqrt(
+                            (obj_from_particle_x - x)**2 + (obj_from_particle_y - y)**2)
+                        map_distances.append( dist )
+            dist = min(map_distances)
+            q *= ( ponderador * stats.pdf(dist) )
+        print(f"Acumulador: {q}")
+    return q
 
 def monte_carlo_localization(
     particles: List[Particle],
