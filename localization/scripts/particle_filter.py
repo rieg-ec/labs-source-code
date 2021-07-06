@@ -56,7 +56,7 @@ class ParticleFilter:
         pose_array = PoseArray()
         pose_array.poses = self.particles
         self.localization_publisher.publish(pose_array)
-
+        
         self.last_pose = odom.pose.pose
 
     def create_particles(self, number_of_particles: int) -> None:

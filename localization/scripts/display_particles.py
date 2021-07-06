@@ -17,6 +17,7 @@ def prepare_image(pose_array: list) -> None:
 
 
 def show(img_to_show) -> None:
+    print("Showing image...")
     cv2.imshow("image", img_to_show)
     if cv2.waitKey(25) & 0xFF == ord('q'):
         return

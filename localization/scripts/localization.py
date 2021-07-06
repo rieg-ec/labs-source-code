@@ -4,6 +4,9 @@ import math
 import random
 import numpy as np
 from scipy.stats import norm
+from scipy import spatial
+
+
 
 from geometry_msgs.msg import Pose, Point, Quaternion
 
@@ -48,7 +51,16 @@ def likelihood_fields(measurement: list, particle: Particle, map_array: np.array
 
     sigma = 1.0
     stats = norm(0, sigma)
-    
+
+    obstacle_coords = []
+
+    for x in range(270):
+        for y in range(270):
+            if map_array[x][y] == 0:
+                obstacle_coords.append( (x, y) )
+
+    tree = spatial.cKDTree( obstacle_coords )
+
     for z_k in measurement:
         angle += angle_increment
         z_max = 4.0
@@ -57,16 +69,13 @@ def likelihood_fields(measurement: list, particle: Particle, map_array: np.array
             # que estamos mirando. lo mismo para y_k
             obj_from_particle_x = particle.position.x + z_k * np.cos(particle.yaw + angle)
             obj_from_particle_y = particle.position.y + z_k * np.sin(particle.yaw + angle)
-            map_distances = []
-            for x in range(270):
-                for y in range(270):
-                    if map_array[x][y] == 100:
-                        dist = np.sqrt(
-                            (obj_from_particle_x - x)**2 + (obj_from_particle_y - y)**2)
-                        map_distances.append( dist )
-            dist = min(map_distances)
+
+            dist, point_id = tree.query( [obj_from_particle_x, obj_from_particle_y] )
+            # print(f'distancia: {dist}')
+
             q *= ( ponderador * stats.pdf(dist) )
-        print(f"Acumulador: {q}")
+
+    print(f"Acumulador: {q}")
     return q
 
 def monte_carlo_localization(
