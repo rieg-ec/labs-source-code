@@ -8,7 +8,7 @@ import numpy as np
 from std_msgs.msg import String, Float64
 from geometry_msgs.msg import Twist, Pose, PoseArray
 from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import Odometry, OccupancyGrid
+from nav_msgs.msg import Odometry
 
 from utils import ang_dif, orientation_to_yaw, add_90_degrees
 
@@ -18,13 +18,15 @@ class NavController:
     def __init__(self) -> None:
         rospy.Subscriber('/odom', Odometry, self.odom_listener)
 
-        rospy.Subscriber('/map', OccupancyGrid,
-                         lambda map: setattr(self, 'map_grid', map.data))
+        # rospy.Subscriber('/map', OccupancyGrid,
+        #                  lambda map: setattr(self, 'map_grid', map.data))
 
         rospy.Subscriber('/scan', LaserScan, self.lidar_cb)
 
         rospy.Subscriber('/control_effort', Float64,
                          lambda v: setattr(self, 'ang_speed', v.data * -1))
+
+        rospy.Subscriber('/localization', PoseArray, self.localization_cb)
 
         self.velocity_publisher = rospy.Publisher(
             '/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=1)
@@ -47,6 +49,9 @@ class NavController:
         self.localization = False
 
         self.obstacles = []
+
+    def localization_cb(self, particles: PoseArray) -> None:
+        print(particles.poses[1:4])
 
     def lidar_cb(self, depth_array: LaserScan) -> None:
         depth_limit = 0.45
@@ -107,7 +112,6 @@ class NavController:
         ERROR_TOLERANCE = 0.05
 
         while ERROR_TOLERANCE < abs(get_state()):
-            print(abs(get_state()))
             velocity = Twist()
             velocity.angular.z = self.ang_speed
             self.ang_state_publisher.publish(

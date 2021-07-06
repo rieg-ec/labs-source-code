@@ -22,7 +22,7 @@ class ParticleFilter:
         rospy.Subscriber(
             '/map', OccupancyGrid,
             lambda m: setattr(self, 'map_grid',
-                              np.reshape(m.data, (270, 270)).T)
+                              np.resize(m.data, (270, 270)).T)
         )
 
         rospy.Subscriber('/scan', LaserScan,
@@ -52,6 +52,10 @@ class ParticleFilter:
 
         self.particles = monte_carlo_localization(
             self.particles, [dx, dy, dtheta], self.scan, self.map_grid)
+
+        pose_array = PoseArray()
+        pose_array.poses = self.particles
+        self.localization_publisher.publish(pose_array)
 
         self.last_pose = odom.pose.pose
 
