@@ -28,11 +28,12 @@ class Particle(Pose):
         self.orientation = Quaternion(*yaw_to_orientation(value))
 
     def move(self, dx: float, dy: float, dtheta: float) -> None:
-        # TODO: check after moving not before
-        if self.position.x < 269 and self.position.x >= 0:
-            self.position.x += dx
-        if self.position.y < 269 and self.position.y >= 0:
-            self.position.y += -dy
+        next_x = self.position.x + dx
+        next_y = self.position.y - dy
+        if next_x < 269 and next_x >= 0:
+            self.position.x = next_x
+        if next_y < 269 and next_y >= 0:
+            self.position.y = next_y
 
         self.yaw += dtheta
 
@@ -109,5 +110,8 @@ def monte_carlo_localization(
     for _ in range(len(particles)):
         index = random.randint(0, len(new_particles_weighted)-1)
         new_particles.append(new_particles_weighted[index])
+
+    if not new_particles:
+        return particles
 
     return new_particles
