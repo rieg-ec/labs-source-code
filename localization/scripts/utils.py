@@ -5,13 +5,13 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 
-def pixel_to_meters(px: int, py: int, res: float) -> Tuple[float, float]:
+def pixel_to_meters(px: int, py: int, res: float = 0.01) -> Tuple[float, float]:
     x = px * res
     y = py * res
     return (x, y)
 
 
-def meters_to_pixel(mx: float, my: float, res: float) -> Tuple[int, int]:
+def meters_to_pixel(mx: float, my: float, res: float = 0.01) -> Tuple[int, int]:
     x = int(mx / res)
     y = int(my / res)
     return (x, y)
