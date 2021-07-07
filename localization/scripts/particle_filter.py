@@ -45,8 +45,8 @@ class ParticleFilter:
             if not hasattr(self, 'particles'):
                 self.create_particles(self.n_particles)
 
-            dx = self.last_pose.position.x - self.odom.position.x
-            dy = self.last_pose.position.y - self.odom.position.y
+            dx = self.odom.position.x - self.last_pose.position.x
+            dy = self.odom.position.y - self.last_pose.position.y
 
             dx, dy = meters_to_pixel(dx, dy, 0.01)
 
@@ -63,6 +63,7 @@ class ParticleFilter:
             self.localization_publisher.publish(pose_array)
 
             self.last_pose = self.odom
+
             rospy.Rate(0.5).sleep()
 
     def create_particles(self, number_of_particles: int) -> None:
