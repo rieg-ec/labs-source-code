@@ -5,6 +5,23 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 
+def pixel_to_meters(px: int, py: int, res: float) -> Tuple[float, float]:
+    x = px * res
+    y = py * res
+    return (x, y)
+
+
+def meters_to_pixel(mx: float, my: float, res: float) -> Tuple[int, int]:
+    x = int(mx / res)
+    y = int(my / res)
+    return (x, y)
+
+
+def shifted_sigmoid(x: np.array):
+    shift = 3
+    return 1 / (1 + np.exp(-x + shift))
+
+
 def euclidean_distance_2d(a: Point, b: Point) -> float:
     return math.sqrt((b.x - a.x)**2 + (b.y - a.y)**2)
 

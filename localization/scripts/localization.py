@@ -6,12 +6,11 @@ import numpy as np
 from scipy.stats import norm
 from scipy import spatial
 
-
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Quaternion
 
 from typing import List
 
-from utils import yaw_to_orientation, orientation_to_yaw
+from utils import yaw_to_orientation, orientation_to_yaw, shifted_sigmoid
 
 
 class Particle(Pose):
@@ -29,10 +28,11 @@ class Particle(Pose):
         self.orientation = Quaternion(*yaw_to_orientation(value))
 
     def move(self, dx: float, dy: float, dtheta: float) -> None:
+        # TODO: check after moving not before
         if self.position.x < 269 and self.position.x >= 0:
             self.position.x += dx
         if self.position.y < 269 and self.position.y >= 0:
-            self.position.y += dy
+            self.position.y += -dy
 
         self.yaw += dtheta
 
@@ -42,20 +42,19 @@ def sample_motion_model(action: list, particle: Particle) -> None:
 
 
 def likelihood_fields(measurement: list, particle: Particle, obstacle_coords: list) -> float:
-    # return random.random() * 3
-    ponderador = 25
     angle_increment = 0.01745329238474369
     angle = -1.5707963705062866
     q = 1
+    z_max = 4.0
+    weight = 25
 
     sigma = 1.0
     stats = norm(0, sigma)
 
-    tree = spatial.cKDTree( obstacle_coords )
+    tree = spatial.cKDTree(obstacle_coords)
 
     for z_k in measurement:
         angle += angle_increment
-        z_max = 4.0
         if z_k != z_max:
             # x_k es la posicion x del objeto que estamos mirando segun la posicion de la particula
             # que estamos mirando. lo mismo para y_k
@@ -64,14 +63,13 @@ def likelihood_fields(measurement: list, particle: Particle, obstacle_coords: li
             obj_from_particle_y = particle.position.y + \
                 z_k * np.sin(particle.yaw + angle)
 
-            dist, point_id = tree.query(
+            dist, _ = tree.query(
                 [obj_from_particle_x, obj_from_particle_y])
-            # print(f'distancia: {dist}')
 
-            q *= (ponderador * stats.pdf(dist))
+            q *= stats.pdf(dist) * weight
 
-    # print(f'q acumulator: {q*500000000000000000000000000}')
-    return q * 500
+    return q
+
 
 def monte_carlo_localization(
     particles: List[Particle],
@@ -80,13 +78,12 @@ def monte_carlo_localization(
     map_array: np.array,
 ) -> List[Particle]:
 
-    #for likelihood_fields_function
     obstacle_coords = []
     for x in range(270):
         for y in range(270):
             if map_array[x][y] == 0:
                 obstacle_coords.append((x, y))
-    
+
     weights = []
     largest_float = 0
 
@@ -97,11 +94,11 @@ def monte_carlo_localization(
         if len(str(w)[:2]) > largest_float:
             largest_float = len(str(w)[:2])
 
+    weights = shifted_sigmoid(np.array(weights))
     weights = [float(i)/max(weights) for i in weights]
 
     scale_factor = 10 ** largest_float
     weights = [int(w * scale_factor) for w in weights]
-    
 
     new_particles_weighted = []
     for idx, weight in enumerate(weights):

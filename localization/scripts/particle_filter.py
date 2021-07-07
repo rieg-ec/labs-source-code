@@ -7,10 +7,8 @@ from nav_msgs.msg import Odometry, OccupancyGrid
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import PoseArray, Point, Quaternion
 
-from utils import orientation_to_yaw, yaw_to_orientation
+from utils import orientation_to_yaw, yaw_to_orientation, meters_to_pixel
 from localization import monte_carlo_localization, Particle
-
-from display_particles import prepare_image
 
 
 class ParticleFilter:
@@ -19,18 +17,17 @@ class ParticleFilter:
         self.n_particles = n_particles
 
         self.localization_publisher = rospy.Publisher(
-            '/localization', PoseArray, queue_size = 1)
+            '/localization', PoseArray, queue_size=1)
 
-        rospy.Subscriber(
-            '/map', OccupancyGrid,
-            lambda m: setattr(self, 'map_grid',
-                              np.resize(m.data, (270, 270)).T)
-        )
+        rospy.Subscriber('/map', OccupancyGrid, self.map_cb)
 
         rospy.Subscriber('/scan', LaserScan,
                          lambda v: setattr(self, 'scan', v.intensities))
         rospy.Subscriber('/odom', Odometry,
                          lambda v: setattr(self, 'odom', v.pose.pose))
+
+    def map_cb(self, grid: OccupancyGrid):
+        self.map_grid = np.resize(grid.data, (270, 270)).T
 
     def localization(self) -> None:
         while not rospy.is_shutdown():
@@ -50,6 +47,9 @@ class ParticleFilter:
 
             dx = self.last_pose.position.x - self.odom.position.x
             dy = self.last_pose.position.y - self.odom.position.y
+
+            dx, dy = meters_to_pixel(dx, dy, 0.01)
+
             dtheta = (
                 orientation_to_yaw(self.odom.orientation) -
                 orientation_to_yaw(self.last_pose.orientation)
@@ -63,7 +63,6 @@ class ParticleFilter:
             self.localization_publisher.publish(pose_array)
 
             self.last_pose = self.odom
-
             rospy.Rate(0.5).sleep()
 
     def create_particles(self, number_of_particles: int) -> None:
