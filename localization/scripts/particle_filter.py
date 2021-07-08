@@ -4,6 +4,7 @@ import numpy as np
 import math
 
 import rospy
+from scipy import spatial
 from nav_msgs.msg import Odometry, OccupancyGrid
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import PoseArray, Point, Quaternion
@@ -33,11 +34,19 @@ class ParticleFilter:
     def map_cb(self, grid: OccupancyGrid):
         self.map_grid = np.resize(grid.data, (270, 270)).T
 
+        obstacle_coords = []
+        for x in range(270):
+            for y in range(270):
+                if self.map_grid[x][y] == 0:
+                    obstacle_coords.append((x, y))
+
+        self.tree = spatial.cKDTree(obstacle_coords)
+
     def localization(self) -> None:
         while not rospy.is_shutdown():
             if (
                 not hasattr(self, 'scan')
-                or not hasattr(self, 'map_grid')
+                or not hasattr(self, 'tree')
                 or not hasattr(self, 'odom')
             ):
                 rospy.Rate(5).sleep()
@@ -54,8 +63,6 @@ class ParticleFilter:
 
             dx, dy = meters_to_pixel(dx, dy)
 
-            print(dx, dy)
-
             dtheta = (
                 orientation_to_yaw(self.odom.orientation) -
                 orientation_to_yaw(self.last_pose.orientation)
@@ -64,7 +71,7 @@ class ParticleFilter:
             self.last_pose = self.odom
 
             self.particles = monte_carlo_localization(
-                self.particles, [dx, dy, dtheta], self.scan, self.map_grid)
+                self.particles, [dx, dy, dtheta], self.scan, self.tree)
 
             pose_array = PoseArray()
             pose_array.poses = self.particles
