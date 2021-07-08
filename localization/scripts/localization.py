@@ -57,11 +57,12 @@ def likelihood_fields(measurement: list, particle: Particle, obstacle_coords: li
     for z_k in measurement:
         angle += angle_increment
         if z_k != z_max:
+            z_k = z_k /0.05
             # x_k es la posicion x del objeto que estamos mirando segun la posicion de la particula
             # que estamos mirando. lo mismo para y_k
             obj_from_particle_x = particle.position.x + \
                 z_k * np.cos(particle.yaw + angle)
-            obj_from_particle_y = particle.position.y + \
+            obj_from_particle_y = particle.position.y - \
                 z_k * np.sin(particle.yaw + angle)
 
             dist, _ = tree.query(
@@ -114,4 +115,5 @@ def monte_carlo_localization(
     if not new_particles:
         return particles
 
+    print(f'Particle pos: {new_particles[0].position}')
     return new_particles

@@ -48,13 +48,13 @@ class ParticleFilter:
             dx = self.odom.position.x - self.last_pose.position.x
             dy = self.odom.position.y - self.last_pose.position.y
 
-            dx, dy = meters_to_pixel(dx, dy, 0.01)
+            dx, dy = meters_to_pixel(dx, dy, 0.05)
 
             dtheta = (
                 orientation_to_yaw(self.odom.orientation) -
                 orientation_to_yaw(self.last_pose.orientation)
             )
-
+            
             self.particles = monte_carlo_localization(
                 self.particles, [dx, dy, dtheta], self.scan, self.map_grid)
 
@@ -70,16 +70,17 @@ class ParticleFilter:
         self.particles = []
         initial_theta = 0
         for _ in range(number_of_particles):
-            x = random.randint(0, 269)
-            y = random.randint(0, 269)
-            while self.map_grid[x][y] != 100:
+            for theta in (0, 1.57, 3.14, -1.57):
                 x = random.randint(0, 269)
                 y = random.randint(0, 269)
+                while self.map_grid[x][y] != 100:
+                    x = random.randint(0, 269)
+                    y = random.randint(0, 269)
 
-            particle = Particle(
-                Point(x, y, 0), Quaternion(*yaw_to_orientation(initial_theta)))
+                particle = Particle(
+                    Point(x, y, 0), Quaternion(*yaw_to_orientation(initial_theta)))
 
-            self.particles.append(particle)
+                self.particles.append(particle)
 
 
 if __name__ == '__main__':
