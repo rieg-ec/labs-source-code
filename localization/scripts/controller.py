@@ -10,8 +10,6 @@ from geometry_msgs.msg import Twist, Pose, PoseArray
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
 
-from utils import ang_dif, orientation_to_yaw, add_90_degrees, pixel_to_meters, meters_to_pixel
-
 
 class NavController:
 
@@ -52,6 +50,9 @@ class NavController:
         for particle in particles.poses:
             dist_x += abs(particle.position.x - mc_x)
             dist_y += abs(particle.position.y - mc_y)
+
+        if (dist_y + dist_x) / len(particles.poses) < 5:
+            self.localization = True
 
     def lidar_cb(self, depth_array: LaserScan) -> None:
         depth_limit = 0.55

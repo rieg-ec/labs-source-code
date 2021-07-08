@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import time
 import rospy
 import math
 import random
@@ -10,7 +11,7 @@ from geometry_msgs.msg import Pose, Quaternion
 
 from typing import List
 
-from utils import yaw_to_orientation, orientation_to_yaw, shifted_sigmoid
+from utils import yaw_to_orientation, orientation_to_yaw, shifted_sigmoid, CONVERSION_RATE
 
 
 class Particle(Pose):
@@ -29,9 +30,11 @@ class Particle(Pose):
 
     def move(self, dx: float, dy: float, dtheta: float) -> None:
         next_x = self.position.x + dx
-        next_y = self.position.y - dy
+        next_y = self.position.y + dy
+
         if next_x < 269 and next_x >= 0:
             self.position.x = next_x
+
         if next_y < 269 and next_y >= 0:
             self.position.y = next_y
 
@@ -49,24 +52,26 @@ def likelihood_fields(measurement: list, particle: Particle, obstacle_coords: li
     z_max = 4.0
     weight = 25
 
-    sigma = 1.0
-    stats = norm(0, sigma)
+    stats = norm(0, 1.0)
 
     tree = spatial.cKDTree(obstacle_coords)
 
     for z_k in measurement:
         angle += angle_increment
         if z_k != z_max:
-            z_k = z_k /0.05
+            z_k = z_k / CONVERSION_RATE
             # x_k es la posicion x del objeto que estamos mirando segun la posicion de la particula
             # que estamos mirando. lo mismo para y_k
             obj_from_particle_x = particle.position.x + \
                 z_k * np.cos(particle.yaw + angle)
-            obj_from_particle_y = particle.position.y - \
+            obj_from_particle_y = particle.position.y + \
                 z_k * np.sin(particle.yaw + angle)
 
             dist, _ = tree.query(
-                [obj_from_particle_x, obj_from_particle_y])
+                [[obj_from_particle_x, obj_from_particle_y]],
+                distance_upper_bound=100,
+                workers=-1
+            )
 
             q *= stats.pdf(dist) * weight
 
@@ -115,5 +120,4 @@ def monte_carlo_localization(
     if not new_particles:
         return particles
 
-    print(f'Particle pos: {new_particles[0].position}')
     return new_particles

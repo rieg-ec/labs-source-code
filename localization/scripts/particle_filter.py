@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import random
 import numpy as np
+import math
 
 import rospy
 from nav_msgs.msg import Odometry, OccupancyGrid
@@ -23,8 +24,11 @@ class ParticleFilter:
 
         rospy.Subscriber('/scan', LaserScan,
                          lambda v: setattr(self, 'scan', v.intensities))
-        rospy.Subscriber('/odom', Odometry,
-                         lambda v: setattr(self, 'odom', v.pose.pose))
+
+        rospy.Subscriber('/odom', Odometry, self.odom_cb)
+
+    def odom_cb(self, odom: Odometry) -> None:
+        self.odom = odom.pose.pose
 
     def map_cb(self, grid: OccupancyGrid):
         self.map_grid = np.resize(grid.data, (270, 270)).T
@@ -46,39 +50,42 @@ class ParticleFilter:
                 self.create_particles(self.n_particles)
 
             dx = self.odom.position.x - self.last_pose.position.x
-            dy = self.odom.position.y - self.last_pose.position.y
+            dy = - (self.odom.position.y - self.last_pose.position.y)
 
-            dx, dy = meters_to_pixel(dx, dy, 0.05)
+            dx, dy = meters_to_pixel(dx, dy)
+
+            print(dx, dy)
 
             dtheta = (
                 orientation_to_yaw(self.odom.orientation) -
                 orientation_to_yaw(self.last_pose.orientation)
             )
-            
+
+            self.last_pose = self.odom
+
             self.particles = monte_carlo_localization(
                 self.particles, [dx, dy, dtheta], self.scan, self.map_grid)
 
             pose_array = PoseArray()
             pose_array.poses = self.particles
+
+            # TODO: remove
+            pose_array.poses.append(self.odom)
             self.localization_publisher.publish(pose_array)
-
-            self.last_pose = self.odom
-
-            rospy.Rate(0.5).sleep()
+            self.particles.pop()
 
     def create_particles(self, number_of_particles: int) -> None:
         self.particles = []
-        initial_theta = 0
         for _ in range(number_of_particles):
-            for theta in (0, 1.57, 3.14, -1.57):
+            x = random.randint(0, 269)
+            y = random.randint(0, 269)
+            while self.map_grid[x][y] != 100:
                 x = random.randint(0, 269)
                 y = random.randint(0, 269)
-                while self.map_grid[x][y] != 100:
-                    x = random.randint(0, 269)
-                    y = random.randint(0, 269)
 
+            for theta in (0, math.pi/2, -math.pi/2, math.pi):
                 particle = Particle(
-                    Point(x, y, 0), Quaternion(*yaw_to_orientation(initial_theta)))
+                    Point(x, y, 0), Quaternion(*yaw_to_orientation(theta)))
 
                 self.particles.append(particle)
 

@@ -5,15 +5,18 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 
-def pixel_to_meters(px: int, py: int, res: float = 0.01) -> Tuple[float, float]:
-    x = px * res
-    y = py * res
+CONVERSION_RATE = 0.05
+
+
+def pixel_to_meters(px: int, py: int) -> Tuple[float, float]:
+    x = px * CONVERSION_RATE
+    y = py * CONVERSION_RATE
     return (x, y)
 
 
-def meters_to_pixel(mx: float, my: float, res: float = 0.01) -> Tuple[int, int]:
-    x = int(mx / res)
-    y = int(my / res)
+def meters_to_pixel(mx: float, my: float) -> Tuple[int, int]:
+    x = int(mx / CONVERSION_RATE)
+    y = int(my / CONVERSION_RATE)
     return (x, y)
 
 
