@@ -44,27 +44,25 @@ def sample_motion_model(action: list, particle: Particle) -> None:
     particle.move(*action)
 
 
-def likelihood_fields(measurement: list, particle: Particle, tree: spatial.cKDTree) -> float:
-    angle_increment = 0.01745329238474369
-    angle = -1.5707963705062866
+def likelihood_fields(measurement: list, particle: Particle, ckdtree: spatial.cKDTree) -> float:
+    angle_increment = -0.01745329238474369
+    angle = 1.5707963705062866
     q = 1
     z_max = 4.0
-    weight = 25
+    weight = 15
 
-    stats = norm(0, 1.0)
+    stats = norm(0, 3)
 
     for z_k in measurement:
         angle += angle_increment
         if z_k != z_max:
             z_k = z_k / CONVERSION_RATE
-            # x_k es la posicion x del objeto que estamos mirando segun la posicion de la particula
-            # que estamos mirando. lo mismo para y_k
             obj_from_particle_x = particle.position.x + \
                 z_k * np.cos(particle.yaw + angle)
             obj_from_particle_y = particle.position.y + \
                 z_k * np.sin(particle.yaw + angle)
 
-            dist, _ = tree.query(
+            dist, _ = ckdtree.query(
                 [[obj_from_particle_x, obj_from_particle_y]],
                 distance_upper_bound=100,
                 workers=-1
@@ -79,7 +77,7 @@ def monte_carlo_localization(
     particles: List[Particle],
     action: list,
     measurement: list,
-    tree: spatial.cKDTree,
+    ckdtree: spatial.cKDTree,
 ) -> List[Particle]:
 
     weights = []
@@ -87,7 +85,7 @@ def monte_carlo_localization(
 
     for particle in particles:
         sample_motion_model(action, particle)
-        w = likelihood_fields(measurement, particle, tree)
+        w = likelihood_fields(measurement, particle, ckdtree)
         weights.append(w)
         if len(str(w)[:2]) > largest_float:
             largest_float = len(str(w)[:2])

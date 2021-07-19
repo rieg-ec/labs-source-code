@@ -5,7 +5,7 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 
-CONVERSION_RATE = 0.05
+CONVERSION_RATE = 0.01
 
 
 def pixel_to_meters(px: int, py: int) -> Tuple[float, float]:

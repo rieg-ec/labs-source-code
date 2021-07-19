@@ -7,7 +7,7 @@ import rospy
 from scipy import spatial
 from nav_msgs.msg import Odometry, OccupancyGrid
 from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import PoseArray, Point, Quaternion
+from geometry_msgs.msg import PoseArray, Point, Quaternion, Pose
 
 from utils import orientation_to_yaw, yaw_to_orientation, meters_to_pixel
 from localization import monte_carlo_localization, Particle
@@ -24,7 +24,7 @@ class ParticleFilter:
         rospy.Subscriber('/map', OccupancyGrid, self.map_cb)
 
         rospy.Subscriber('/scan', LaserScan,
-                         lambda v: setattr(self, 'scan', v.intensities))
+                         lambda v: setattr(self, 'scan', v.ranges))
 
         rospy.Subscriber('/odom', Odometry, self.odom_cb)
 
@@ -40,16 +40,16 @@ class ParticleFilter:
                 if self.map_grid[x][y] == 0:
                     obstacle_coords.append((x, y))
 
-        self.tree = spatial.cKDTree(obstacle_coords)
+        self.ckdtree = spatial.cKDTree(obstacle_coords)
 
     def localization(self) -> None:
         while not rospy.is_shutdown():
+            rospy.Rate(20).sleep()
             if (
                 not hasattr(self, 'scan')
-                or not hasattr(self, 'tree')
+                or not hasattr(self, 'ckdtree')
                 or not hasattr(self, 'odom')
             ):
-                rospy.Rate(5).sleep()
                 continue
 
             if not hasattr(self, 'last_pose'):
@@ -68,16 +68,15 @@ class ParticleFilter:
                 orientation_to_yaw(self.last_pose.orientation)
             )
 
+            # save last pose before calling loc algorithm
             self.last_pose = self.odom
 
             self.particles = monte_carlo_localization(
-                self.particles, [dx, dy, dtheta], self.scan, self.tree)
+                self.particles, [dx, dy, dtheta], self.scan, self.ckdtree)
 
             pose_array = PoseArray()
             pose_array.poses = self.particles
 
-            # TODO: remove
-            pose_array.poses.append(self.odom)
             self.localization_publisher.publish(pose_array)
             self.particles.pop()
 
@@ -86,19 +85,20 @@ class ParticleFilter:
         for _ in range(number_of_particles):
             x = random.randint(0, 269)
             y = random.randint(0, 269)
-            while self.map_grid[x][y] != 100:
+            while self.map_grid[x][y] == 100 or self.map_grid[x][y] == 19:
                 x = random.randint(0, 269)
                 y = random.randint(0, 269)
 
-            for theta in (0, math.pi/2, -math.pi/2, math.pi):
-                particle = Particle(
-                    Point(x, y, 0), Quaternion(*yaw_to_orientation(theta)))
+            # for theta in (0, math.pi/2, -math.pi/2, math.pi):
+            theta = 0
+            particle = Particle(
+                Point(x, y, 0), Quaternion(*yaw_to_orientation(theta)))
 
-                self.particles.append(particle)
+            self.particles.append(particle)
 
 
 if __name__ == '__main__':
     rospy.init_node('particle_filter', anonymous=True)
-    particle_filter = ParticleFilter(50)
+    particle_filter = ParticleFilter(2000)
     particle_filter.localization()
     rospy.spin()

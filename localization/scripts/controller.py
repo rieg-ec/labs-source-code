@@ -29,8 +29,8 @@ class NavController:
         self.odom = Pose()
 
         self.velocity: Twist = Twist()
-        self.velocity.linear.x = 0.2
-        self.ang_speed: float = 1.2
+        self.velocity.linear.x = 0.05
+        self.ang_speed: float = 0.5
 
         self.laser_scan_intensities: List = []
         self.localization = False
