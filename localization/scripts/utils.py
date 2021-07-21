@@ -5,6 +5,26 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 
+CONVERSION_RATE = 0.01
+
+
+def pixel_to_meters(px: int, py: int) -> Tuple[float, float]:
+    x = px * CONVERSION_RATE
+    y = py * CONVERSION_RATE
+    return (x, y)
+
+
+def meters_to_pixel(mx: float, my: float) -> Tuple[int, int]:
+    x = int(mx / CONVERSION_RATE)
+    y = int(my / CONVERSION_RATE)
+    return (x, y)
+
+
+def shifted_sigmoid(x: np.array):
+    shift = 3
+    return 1 / (1 + np.exp(-x + shift))
+
+
 def euclidean_distance_2d(a: Point, b: Point) -> float:
     return math.sqrt((b.x - a.x)**2 + (b.y - a.y)**2)
 
@@ -21,6 +41,14 @@ def orientation_to_yaw(orientation: Pose.orientation) -> float:
         return - (2*math.pi - yaw)
     else:
         return yaw
+
+
+def yaw_to_orientation(yaw: float) -> Pose.orientation:
+    if yaw < 0:
+        yaw = 2*math.pi + yaw
+
+    quaternion = quaternion_from_euler(0, 0, yaw)
+    return quaternion
 
 
 def ang_dif(current: float, target: float) -> float:
