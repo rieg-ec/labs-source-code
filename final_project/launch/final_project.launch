@@ -1,0 +1,14 @@
+<launch>
+  <node pkg="very_simple_robot_simulator" name="world_state_gui" type="world_state_gui.py" >
+    <param name="map_file" type="yaml" value="$(find final_project)/maps/map.yaml" />
+  </node>
+
+  <include file="$(find very_simple_robot_simulator)/launch/minimal_simulator.launch" />
+  <include file="$(find very_simple_robot_simulator)/launch/lidar_simulator.launch" />
+
+  <node name="controller" pkg="final_project" type="controller.py" output="screen"/>
+  <node name="particle_filter" pkg="localization" type="particle_filter.py" output="screen"/>
+  <node name="display_particles" pkg="localization" type="display_particles.py" output="screen"/>
+
+
+</launch>
