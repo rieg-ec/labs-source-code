@@ -1,10 +1,44 @@
-class Graph():
+#!/usr/bin/env python3
+import sys
+from os import path
 
-    def __init__(self) -> None:
-        pass
+import cv2
+import numpy as np
+import rospy
+from geometry_msgs.msg import Point, PoseArray, PoseStamped
+from nav_msgs.msg import Path
+import rospkg
 
-    def c_space_map(self):
-        pass
+from utils import meters_to_pixel, pixel_to_meters
+
+
+def c_space_map(map: np.array, robot_radius=10) -> np.array:
+    ROBOTRADIUS = robot_radius
+
+    color_c_space = 205
+
+    def limits(x, y, map_shape):
+        return 0 < x < map_shape[0] and 0 < y < map_shape[1]
+
+    new_map = map
+    shape = map.shape
+    for x in range(shape[0]):
+        for y in range(shape[1]):
+            if map[x][y] == 0:
+                for x_radio in range(1, ROBOTRADIUS + 1):
+                    if limits(x + x_radio, y, shape) and map[x + x_radio][y] != 0:
+                        new_map[x + x_radio][y] = color_c_space
+                for y_radio in range(1, ROBOTRADIUS + 1):
+                    if limits(x, y + y_radio, shape) and map[x][y + y_radio] != 0:
+                        new_map[x][y + y_radio] = color_c_space
+                for x_radio in range(1, ROBOTRADIUS + 1):
+                    if limits(x - x_radio, y, shape) and map[x - x_radio][y] != 0:
+                        new_map[x - x_radio][y] = color_c_space
+                for y_radio in range(1, ROBOTRADIUS + 1):
+                    if limits(x, y - y_radio, shape) and map[x][y - y_radio] != 0:
+                        new_map[x][y - y_radio] = color_c_space
+
+    return new_map
 
 
 class State(object):
@@ -22,56 +56,66 @@ class State(object):
     def expand(self):
         successors = list()
 
-        # Step 1: Convert from the cell's coordinate (x, y) to the cell's central pixel of map image (x_pix, y_pix).
-        # Step 2: Determine whether exist a wall between the current cell's central pixel and the adjacent cell's
-        #         central pixel, based on the pixel's values between centers.
-        # Step 3: If there is not a wall, create the successor state and add it to the 'successors' list.
-        #         Consider the following action definition: 'go_north', 'go_south', 'go_east', 'go_west'
+        def limits(x: int, y: int) -> bool:
+            shape = self.pixmap.shape
+            return 0 < x < shape[0] - 7 and 0 < y < shape[1] - 7
 
-        x_state = self.node_id[0] + 3
-        y_state = self.node_id[1] + 3
+        def create_state(node_id: tuple, pixmap: np.array, parent: State, action: str) -> State:
+            state = State(node_id, pixmap)
+            state.parent = parent
+            state.prev_action = action
+            return state
 
-        west = (x_state - self.cell_size[0], y_state)
-        east = (x_state + self.cell_size[0], y_state)
-        north = (x_state, y_state + self.cell_size[1])
-        south = (x_state, y_state - self.cell_size[1])
+        def detect_wall(origin: tuple, destin: tuple) -> bool:
+            if limits(destin[0]+1, destin[1]+1):
+                if destin[0] <= origin[0]:
+                    aux_map = self.pixmap[destin[0]
+                        :origin[0]+1, origin[1]:destin[1]+1]
+                elif origin[0] <= destin[0]:
+                    aux_map = self.pixmap[origin[0]
+                        :destin[0]+1, origin[1]:destin[1]+1]
+                if destin[1] < origin[1]:
+                    aux_map = self.pixmap[destin[0]
+                        :origin[0]+1, destin[1]:origin[1]+1]
+                elif origin[1] <= destin[1]:
+                    aux_map = self.pixmap[origin[0]
+                        :destin[0]+1, origin[1]:destin[1]+1]
+                if 205 in aux_map or 0 in aux_map:
+                    return True
+                else:
+                    return False
+            return True
 
-        asign = True
-        for y_step in range(1, north[1] - y_state + 1):
-            if self.pixmap[x_state][y_state + y_step] == 100 or \
-                    self.pixmap[x_state][y_state + y_step] == 19:
-                asign = False
-                break
-        if asign:
-            successors.append(State(west, self.pixmap))
+        x_state = self.node_id[0]
+        y_state = self.node_id[1]
 
-        asign = True
-        for y_step in range(1, abs(south[1] - x_state),):
-            if self.pixmap[x_state][y_state - y_step] == 100 or \
-                    self.pixmap[x_state][y_state - y_step] == 19:
-                asign = False
-                break
-        if asign:
-            successors.append(State(south, self.pixmap))
+        west = self.node_id
+        east = self.node_id
+        north = self.node_id
+        south = self.node_id
 
-        asign = True
-        for x_step in range(1, abs(west[0] - self.node_id[1]) + 1):
-            if self.pixmap[x_state - x_step][y_state] == 100 or \
-                    self.pixmap[x_state - x_step][y_state] == 19:
-                asign = False
-                break
-        if asign:
-            successors.append(State(west, self.pixmap))
+        if limits(x_state - self.cell_size[0], y_state):
+            west = (x_state - self.cell_size[0], y_state)
+        if limits(x_state + self.cell_size[0], y_state):
+            east = (x_state + self.cell_size[0], y_state)
+        if limits(x_state, y_state + self.cell_size[1]):
+            south = (x_state, y_state + self.cell_size[1])
+        if limits(x_state, y_state - self.cell_size[1]):
+            north = (x_state, y_state - self.cell_size[1])
 
-        asign = True
-        for x_step in range(1, east[0] - self.node_id[1] + 1):
-            if self.pixmap[x_state + x_step][y_state] == 100 or \
-                    self.pixmap[x_state + x_step][y_state] == 19:
-                asign = False
-                break
+        if not detect_wall(self.node_id, north):
+            successors.append(create_state(
+                north, self.pixmap, self, "go_north"))
 
-        if asign:
-            successors.append(State(east, self.pixmap))
+        if not detect_wall(self.node_id, south):
+            successors.append(create_state(
+                south, self.pixmap, self, "go_south"))
+
+        if not detect_wall(self.node_id, west):
+            successors.append(create_state(west, self.pixmap, self, "go_west"))
+
+        if not detect_wall(self.node_id, east):
+            successors.append(create_state(east, self.pixmap, self, "go_east"))
 
         return successors
 
@@ -98,15 +142,18 @@ def bf_search(s0, sg):
     open_queue.append(s0)
     while len(open_queue) > 0:
         s = open_queue.pop(0)
-        # print(f'State: {s}')
         closed_queue.append(s)
-        if s == sg:
+        dist = (abs(s.node_id[0] - sg.node_id[0]) +
+                abs(s.node_id[1] - sg.node_id[1]))
+        if s == sg or dist < 8:
             break
-        # print(f'STATE BEFORE FAILING {s}')
         successors = s.expand()
         successors = list(set(successors) -
                           set(open_queue) - set(closed_queue))
         open_queue += successors
+        sys.stdout.write("Download progress: %d%%   \r" %
+                         (len(closed_queue)/2800))
+        sys.stdout.flush()
     return s
 
 #
@@ -133,23 +180,55 @@ def img2map(pixvalue, occupied_thresh, free_thresh):
         return -1
 
 
-if __name__ == '__main__':
+def search(pose_array: PoseArray) -> None:
+    global CSpaceMap
+    y_max_metros, _ = pixel_to_meters(CSpaceMap.shape[1], CSpaceMap.shape[0])
+    y_max_pix = CSpaceMap.shape[1]
 
-    import numpy as np
-    import cv2
+    cell_s = meters_to_pixel(
+        pose_array.poses[0].position.x, y_max_metros - pose_array.poses[0].position.y)
 
-    # These three lines can be replaced by the map received from map_server node.
-    map_img = cv2.imread('map.pgm', cv2.IMREAD_GRAYSCALE)
-    vect_img2map = np.vectorize(img2map)
-    ros_map = vect_img2map(map_img, 0.65, 0.196)
+    cell_g = meters_to_pixel(
+        pose_array.poses[1].position.x, y_max_metros - pose_array.poses[1].position.y)
 
-    cell_s = (1, 1)  # Initial cell
-    cell_g = (3, 4)  # Goal cell
-    s0 = State(cell_s, ros_map)  # Initial state in graph
-    sg = State(cell_g, ros_map)  # Goal state in graph
-    print('Going from %s to %s\n' % (s0, sg))
+    s0 = State(cell_s, CSpaceMap)  # Initial state in graph
+    sg = State(cell_g, CSpaceMap)  # Goal state in graph
 
-    print('Plan found (cell_a, action, cell_b):')
+    path = Path()
+
     sg = bf_search(s0, sg)  # Breadth-First Search algorithm execution
-    for cell_a, action, cell_b in get_sequence(sg):
-        print('%s, %s, %s' % (cell_a, action, cell_b))
+    for _, _, cell_b in get_sequence(sg):
+        cell_b = pixel_to_meters(cell_b[0], y_max_pix - cell_b[1])
+        pose_stamped = PoseStamped()
+        pose_stamped.pose.position = Point(
+            float(cell_b[0]), float(cell_b[1]), 0)
+        path.poses.append(pose_stamped)
+
+    print(path)
+
+    broadcast_path(path)
+
+
+def broadcast_path(path):
+    while nav_path_publisher.get_num_connections() < 1:
+        rospy.Rate(1).sleep()
+    nav_path_publisher.publish(path)
+
+
+if __name__ == '__main__':
+    rospack = rospkg.RosPack()
+
+    filepath = path.join(rospack.get_path(
+        'final_project'), 'maps', 'project_map_4x.pgm')
+
+    map_img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+
+    CSpaceMap = np.ndarray.transpose(c_space_map(map_img))
+    rospy.init_node('nav_path', anonymous=True)
+
+    nav_path_publisher = rospy.Publisher(
+        '/nav_plan', Path, queue_size=1)
+
+    rospy.Subscriber('/goal_poses', PoseArray, search)
+
+    rospy.spin()

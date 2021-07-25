@@ -1,88 +1,120 @@
 #!/usr/bin/env python3
 import math
 import random
-from typing import Tuple, List
 
 import rospy
-import numpy as np
-from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose, PoseArray
-from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point, Pose, Twist
+from nav_msgs.msg import Odometry, Path
+from std_msgs.msg import Float64
+
+from utils import (angular_error, euclidean_distance_2d, orientation_to_yaw,
+                   shortest_line_angle)
 
 
 class NavController:
 
+    GAP = 3
+
     def __init__(self) -> None:
-        rospy.Subscriber('/odom', Odometry, self.odom_listener)
+        rospy.Subscriber('/odom', Odometry, self.odom_cb)
 
-        # rospy.Subscriber('/map', OccupancyGrid,
-        #                  lambda map: setattr(self, 'map_grid', map.data))
+        rospy.Subscriber('/nav_plan', Path, self.path_cb)
 
-        rospy.Subscriber('/scan', LaserScan, self.lidar_cb)
+        rospy.Subscriber('/control_effort', Float64,
+                         lambda v: setattr(self, 'angular_speed', v.data * -1))
 
-        rospy.Subscriber('/localization', PoseArray, self.localization_cb)
+        rospy.Subscriber('/localization_pose', Pose, self.localization_cb)
+
+        self.ang_state_publisher = rospy.Publisher(
+            '/state', Float64, queue_size=1)
+
+        self.ang_setpoint_publisher = rospy.Publisher(
+            '/setpoint', Float64, queue_size=1)
 
         self.velocity_publisher = rospy.Publisher(
             '/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=1)
 
-        self.odom = Pose()
-
-        self.velocity: Twist = Twist()
-        self.velocity.linear.x = 0.05
-        self.ang_speed: float = 0.5
-
-        self.laser_scan_intensities: List = []
         self.localization = False
-
         self.obstacles = []
 
-    def localization_cb(self, particles: PoseArray) -> None:
-        sum_x = sum([particle.position.x for particle in particles.poses])
-        sum_y = sum([particle.position.y for particle in particles.poses])
+        self.angular_speed = 0
 
-        mc_x = sum_x / len(particles.poses)
-        mc_y = sum_y / len(particles.poses)
+        self.closest_point_index = 0
 
-        dist_x = 0
-        dist_y = 0
+    @property
+    def carrot(self) -> Point:
 
-        for particle in particles.poses:
-            dist_x += abs(particle.position.x - mc_x)
-            dist_y += abs(particle.position.y - mc_y)
+        if self.closest_point_index + self.GAP > len(self.path_plan.poses) - 1:
+            return self.path_plan.poses[-1].pose.position
 
-        if (dist_y + dist_x) / len(particles.poses) < 5:
-            self.localization = True
+        return self.path_plan.poses[self.closest_point_index + self.GAP].pose.position
 
-    def lidar_cb(self, depth_array: LaserScan) -> None:
-        depth_limit = 0.55
+    def localization_cb(self, pose: Pose):
+        self.pose = pose
 
-        self.obstacles = []
+    def path_cb(self, path: Path) -> None:
+        while not hasattr(self, 'odom') or not hasattr(self, 'pose'):
+            rospy.Rate(10).sleep()
 
-        if np.mean(depth_array.ranges[81:100]) < depth_limit:
-            self.obstacles.append('center')
+        self.path_plan = path
+        self.follow_the_carrot()
 
-        if np.mean(depth_array.ranges[65:81]) < depth_limit:
-            self.obstacles.append('left')
+    def odom_cb(self, odom: Odometry) -> None:
+        if hasattr(self, 'odom'):
+            dx = odom.pose.pose.position.x - self.odom.position.x
+            dy = odom.pose.pose.position.y - self.odom.position.y
+        else:
+            dx, dy = 0, 0
 
-    def odom_listener(self, odom: Odometry) -> None:
         self.odom = odom.pose.pose
 
-    def move(self) -> None:
-        while not self.localization:
-            if 'left' not in self.obstacles:
-                self.velocity.angular.z = -self.ang_speed
+        if hasattr(self, 'pose'):
+            self.pose.position.x += dx
+            self.pose.position.y += dy
+            # TODO: add dtheta instead of rewriting oritentation
+            self.pose.orientation = self.odom.orientation
 
-            elif 'center' in self.obstacles:
-                self.velocity.angular.z = self.ang_speed
+    def update_closes_point_index(self) -> None:
+        for idx, pos in enumerate(self.path_plan.poses):
+            if (
+                euclidean_distance_2d(self.pose.position, pos.pose.position) <
+                euclidean_distance_2d(
+                    self.pose.position, self.path_plan.poses[self.closest_point_index].pose.position)
+            ):
+                self.closest_point_index = idx
 
-            self.velocity_publisher.publish(self.velocity)
+    def follow_the_carrot(self) -> None:
+        self.ang_setpoint_publisher.publish(0)
 
-            rospy.Rate(20).sleep()
+        velocity = Twist()
+        velocity.linear.x = 0.15
+
+        while (
+            not rospy.is_shutdown() and
+            euclidean_distance_2d(
+                self.path_plan.poses[-1].pose.position, self.pose.position
+            ) > 0.05
+        ):
+
+            print(f'({self.carrot.x}, {self.carrot.y})', euclidean_distance_2d(
+                self.pose.position, self.path_plan.poses[self.closest_point_index].pose.position))
+
+            self.update_closes_point_index()
+
+            current_angle = orientation_to_yaw(self.odom.orientation)
+            target_angle = shortest_line_angle(self.pose.position, self.carrot)
+
+            self.ang_state_publisher.publish(
+                angular_error(current_angle, target_angle)
+            )
+
+            velocity.angular.z = self.angular_speed
+
+            self.velocity_publisher.publish(velocity)
+            rospy.Rate(10).sleep()
 
 
 if __name__ == '__main__':
     rospy.init_node('navigation_controller', anonymous=True)
     navigation_controller = NavController()
-    navigation_controller.move()
     rospy.spin()
