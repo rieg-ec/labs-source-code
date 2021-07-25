@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
-import sys
+
 from os import path
+from typing import List, Tuple
 
 import cv2
 import numpy as np
+import rospkg
 import rospy
 from geometry_msgs.msg import Point, PoseArray, PoseStamped
 from nav_msgs.msg import Path
-import rospkg
 
 from utils import meters_to_pixel, pixel_to_meters
 
+ROBOTRADIUS = 10
 
-def c_space_map(map: np.array, robot_radius=10) -> np.array:
-    ROBOTRADIUS = robot_radius
 
-    color_c_space = 205
+def c_space_map(map: np.array) -> np.array:
+    c_space_color = 205
 
     def limits(x, y, map_shape):
         return 0 < x < map_shape[0] and 0 < y < map_shape[1]
@@ -27,32 +28,38 @@ def c_space_map(map: np.array, robot_radius=10) -> np.array:
             if map[x][y] == 0:
                 for x_radio in range(1, ROBOTRADIUS + 1):
                     if limits(x + x_radio, y, shape) and map[x + x_radio][y] != 0:
-                        new_map[x + x_radio][y] = color_c_space
+                        new_map[x + x_radio][y] = c_space_color
                 for y_radio in range(1, ROBOTRADIUS + 1):
                     if limits(x, y + y_radio, shape) and map[x][y + y_radio] != 0:
-                        new_map[x][y + y_radio] = color_c_space
+                        new_map[x][y + y_radio] = c_space_color
                 for x_radio in range(1, ROBOTRADIUS + 1):
                     if limits(x - x_radio, y, shape) and map[x - x_radio][y] != 0:
-                        new_map[x - x_radio][y] = color_c_space
+                        new_map[x - x_radio][y] = c_space_color
                 for y_radio in range(1, ROBOTRADIUS + 1):
                     if limits(x, y - y_radio, shape) and map[x][y - y_radio] != 0:
-                        new_map[x][y - y_radio] = color_c_space
+                        new_map[x][y - y_radio] = c_space_color
 
-    return new_map
+                for y_radio in range(1, ROBOTRADIUS + 1):
+                    if limits(x - y_radio, y - y_radio, shape) and map[x - y_radio][y - y_radio] != 0:
+                        new_map[x - y_radio][y - y_radio] = c_space_color
+                    if limits(x + y_radio, y + y_radio, shape) and map[x + y_radio][y + y_radio] != 0:
+                        new_map[x + y_radio][y + y_radio] = c_space_color
+                    if limits(x - y_radio, y + y_radio, shape) and map[x - y_radio][y + y_radio] != 0:
+                        new_map[x - y_radio][y + y_radio] = c_space_color
+                    if limits(x + y_radio, y - y_radio, shape) and map[x + y_radio][y - y_radio] != 0:
+                        new_map[x + y_radio][y - y_radio] = c_space_color
+
+    return new_map.T
 
 
-class State(object):
-
-    def __init__(self, node_id, pixmap, cell_size=(7, 7)) -> None:
+class State:
+    def __init__(self, node_id: Tuple[int, int], pixmap: np.array, cell_size=(7, 7)) -> None:
         self.node_id = node_id      # Current cell coordinate (x, y)
-        # Map image. For example, in ROS format (-1: unknown, 0: free, 100: busy)
         self.pixmap = pixmap
-        self.cell_size = cell_size  # Cell size in pixels ( without walls )
-        # Action to get this state. Initial state must have a None value.
+        self.cell_size = cell_size
         self.prev_action = None
         self.parent = None          # Previous state
 
-    # IMPLEMENT ME!
     def expand(self):
         successors = list()
 
@@ -60,7 +67,12 @@ class State(object):
             shape = self.pixmap.shape
             return 0 < x < shape[0] - 7 and 0 < y < shape[1] - 7
 
-        def create_state(node_id: tuple, pixmap: np.array, parent: State, action: str) -> State:
+        def create_state(
+            node_id: Tuple[int, int],
+            pixmap: np.array,
+            parent: State,
+            action: str
+        ) -> State:
             state = State(node_id, pixmap)
             state.parent = parent
             state.prev_action = action
@@ -69,17 +81,13 @@ class State(object):
         def detect_wall(origin: tuple, destin: tuple) -> bool:
             if limits(destin[0]+1, destin[1]+1):
                 if destin[0] <= origin[0]:
-                    aux_map = self.pixmap[destin[0]
-                        :origin[0]+1, origin[1]:destin[1]+1]
+                    aux_map = self.pixmap[destin[0]:origin[0]+1, origin[1]:destin[1]+1]
                 elif origin[0] <= destin[0]:
-                    aux_map = self.pixmap[origin[0]
-                        :destin[0]+1, origin[1]:destin[1]+1]
+                    aux_map = self.pixmap[origin[0]:destin[0]+1, origin[1]:destin[1]+1]
                 if destin[1] < origin[1]:
-                    aux_map = self.pixmap[destin[0]
-                        :origin[0]+1, destin[1]:origin[1]+1]
+                    aux_map = self.pixmap[destin[0]:origin[0]+1, destin[1]:origin[1]+1]
                 elif origin[1] <= destin[1]:
-                    aux_map = self.pixmap[origin[0]
-                        :destin[0]+1, origin[1]:destin[1]+1]
+                    aux_map = self.pixmap[origin[0]:destin[0]+1, origin[1]:destin[1]+1]
                 if 205 in aux_map or 0 in aux_map:
                     return True
                 else:
@@ -131,12 +139,8 @@ class State(object):
     def __str__(self):
         return str(self.node_id)
 
-#
-# BFS Algorithm
-#
 
-
-def bf_search(s0, sg):
+def bf_search(s0: State, sg: State) -> State:
     open_queue = list()
     closed_queue = list()
     open_queue.append(s0)
@@ -151,68 +155,54 @@ def bf_search(s0, sg):
         successors = list(set(successors) -
                           set(open_queue) - set(closed_queue))
         open_queue += successors
-        sys.stdout.write("Download progress: %d%%   \r" %
-                         (len(closed_queue)/2800))
-        sys.stdout.flush()
     return s
 
-#
-# Build sequence from goal state
-#
 
-
-def get_sequence(sg):
+def get_sequence(sg: State) -> List[State]:
     aseq = list()
     s = sg
-    while None != s.parent:  # Is this state the initial state
+    while s.parent is not None:  # Is this state the initial state
         aseq.append((s.parent.node_id, s.prev_action, s.node_id))
         s = s.parent
     return aseq[::-1]  # Invert sequence order from sg->...->s0 to s0->...->sg
 
 
-def img2map(pixvalue, occupied_thresh, free_thresh):
-    p = (255 - pixvalue) / 255.0
-    if p > occupied_thresh:
-        return 100
-    elif p < free_thresh:
-        return 0
-    else:
-        return -1
+class SearchBFS:
+    def __init__(self, pixmap: np.array) -> None:
+        self.c_space_map = c_space_map(pixmap)
 
+        rospy.Subscriber('/goal_poses', PoseArray, self.goal_poses_cb)
 
-def search(pose_array: PoseArray) -> None:
-    global CSpaceMap
-    y_max_metros, _ = pixel_to_meters(CSpaceMap.shape[1], CSpaceMap.shape[0])
-    y_max_pix = CSpaceMap.shape[1]
+        self.nav_path_publisher = rospy.Publisher(
+            '/nav_plan', Path, queue_size=1)
 
-    cell_s = meters_to_pixel(
-        pose_array.poses[0].position.x, y_max_metros - pose_array.poses[0].position.y)
+    def goal_poses_cb(self, pose_array: PoseArray) -> None:
+        _, y_max_meters = pixel_to_meters(*self.c_space_map.shape)
+        y_max_pixels = self.c_space_map.shape[1]
 
-    cell_g = meters_to_pixel(
-        pose_array.poses[1].position.x, y_max_metros - pose_array.poses[1].position.y)
+        cell_s = meters_to_pixel(
+            pose_array.poses[0].position.x, y_max_meters - pose_array.poses[0].position.y)
 
-    s0 = State(cell_s, CSpaceMap)  # Initial state in graph
-    sg = State(cell_g, CSpaceMap)  # Goal state in graph
+        cell_g = meters_to_pixel(
+            pose_array.poses[1].position.x, y_max_meters - pose_array.poses[1].position.y)
 
-    path = Path()
+        s0 = State(cell_s, self.c_space_map)  # Initial state in graph
+        sg = State(cell_g, self.c_space_map)  # Goal state in graph
 
-    sg = bf_search(s0, sg)  # Breadth-First Search algorithm execution
-    for _, _, cell_b in get_sequence(sg):
-        cell_b = pixel_to_meters(cell_b[0], y_max_pix - cell_b[1])
-        pose_stamped = PoseStamped()
-        pose_stamped.pose.position = Point(
-            float(cell_b[0]), float(cell_b[1]), 0)
-        path.poses.append(pose_stamped)
+        path = Path()
 
-    print(path)
+        sg = bf_search(s0, sg)
 
-    broadcast_path(path)
+        print(sg.parent)
 
+        for _, _, cell in get_sequence(sg):
+            cell = pixel_to_meters(cell[0], y_max_pixels - cell[1])
+            pose_stamped = PoseStamped()
+            pose_stamped.pose.position = Point(
+                float(cell[0]), float(cell[1]), 0)
+            path.poses.append(pose_stamped)
 
-def broadcast_path(path):
-    while nav_path_publisher.get_num_connections() < 1:
-        rospy.Rate(1).sleep()
-    nav_path_publisher.publish(path)
+        self.nav_path_publisher.publish(path)
 
 
 if __name__ == '__main__':
@@ -223,12 +213,6 @@ if __name__ == '__main__':
 
     map_img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
 
-    CSpaceMap = np.ndarray.transpose(c_space_map(map_img))
     rospy.init_node('nav_path', anonymous=True)
-
-    nav_path_publisher = rospy.Publisher(
-        '/nav_plan', Path, queue_size=1)
-
-    rospy.Subscriber('/goal_poses', PoseArray, search)
-
+    bfs_node = SearchBFS(map_img)
     rospy.spin()
