@@ -193,8 +193,6 @@ class SearchBFS:
 
         sg = bf_search(s0, sg)
 
-        print(sg.parent)
-
         for _, _, cell in get_sequence(sg):
             cell = pixel_to_meters(cell[0], y_max_pixels - cell[1])
             pose_stamped = PoseStamped()
@@ -202,6 +200,8 @@ class SearchBFS:
                 float(cell[0]), float(cell[1]), 0)
             path.poses.append(pose_stamped)
 
+        while self.nav_path_publisher.get_num_connections() < 1:
+            rospy.Rate(10).sleep()
         self.nav_path_publisher.publish(path)
 
 

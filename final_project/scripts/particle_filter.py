@@ -69,7 +69,7 @@ class ParticleFilter:
 
     def localization(self) -> None:
         localized = False
-        DISTANCE_THRESHOLD = 5
+        DISTANCE_THRESHOLD = 4
 
         while not rospy.is_shutdown() and not localized:
 
@@ -97,19 +97,26 @@ class ParticleFilter:
 
             particles_distance = self.particles_distance(pose_array)
 
+            print(particles_distance)
+
             if particles_distance < DISTANCE_THRESHOLD:
                 mc_x, mc_y = self.mass_center(pose_array)
 
-                print(pixel_to_meters(mc_x, MAP_DIM[1] - mc_y), 'AAAAAAAA')
+                print(pixel_to_meters(mc_x, MAP_DIM[1] - mc_y), 'AAAAAA')
 
                 # TODO: mass_center but for theta
                 pose = Pose(
                     Point(*pixel_to_meters(mc_x, MAP_DIM[1] - mc_y), 0),
                     Quaternion(*yaw_to_orientation(0))
                 )
+
+                while self.localization_publisher.get_num_connections() < 1:
+                    rospy.Rate(10).sleep()
                 self.localization_publisher.publish(pose)
                 localized = True
 
+            while self.particles_publisher.get_num_connections() < 1:
+                rospy.Rate(10).sleep()
             self.particles_publisher.publish(pose_array)
 
             rospy.Rate(20).sleep()
@@ -136,7 +143,8 @@ class ParticleFilter:
         return (dist_x / len(particles.poses)) + (dist_y / len(particles.poses))
 
     def create_particles(self, x_start: int, y_start: int, theta_start: float) -> None:
-        ERROR = 5
+        print(x_start, y_start, 'startttttttttttt')
+        ERROR = 4
 
         if x_start - ERROR < 0:
             x_start = ERROR
@@ -170,5 +178,5 @@ class ParticleFilter:
 
 if __name__ == '__main__':
     rospy.init_node('particle_filter', anonymous=True)
-    particle_filter = ParticleFilter(400)
+    particle_filter = ParticleFilter(300)
     rospy.spin()

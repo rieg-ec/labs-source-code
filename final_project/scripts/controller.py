@@ -66,6 +66,7 @@ class NavController:
 
         start_pose = self.pose_array.poses.pop(0)
         mid_pose = self.pose_array.poses.pop(0)
+        self.last_pose = self.pose_array.poses[-1]
         self.publish_pose(start_pose, mid_pose)
 
     @property
@@ -78,11 +79,13 @@ class NavController:
         return self.path_plan.poses[self.closest_point_index + GAP].pose.position
 
     def localization_cb(self, pose: Pose):
+        print('llego el loc cb mano')
+
         self.pose = pose
         self.localized = True
-        print('AAAAAAAAAAAAAAAAa')
 
     def path_cb(self, path: Path) -> None:
+        print('llego el path cb mano')
         while (
                 not hasattr(self, 'odom') or
                 not hasattr(self, 'pose') or
@@ -168,6 +171,13 @@ class NavController:
 
         if not pose_end:
             self.locate_publisher.publish(pose_start)
+            while not self.localized:
+                rospy.Rate(10).sleep()
+            print(
+                f'({self.pose.position.x}, {self.pose.position.y})',
+                f'({pose_start.position.x}, {pose_start.position.y})',
+                f'{euclidean_distance_2d(self.pose.position, self.last_pose.position)}'
+            )
             return
 
         path_poses = PoseArray()

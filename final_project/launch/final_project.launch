@@ -1,14 +1,22 @@
 <launch>
   <node pkg="very_simple_robot_simulator" name="world_state_gui" type="world_state_gui.py" >
-    <param name="map_file" type="yaml" value="$(find final_project)/maps/map.yaml" />
+    <param name="map_file" type="yaml" value="$(find final_project)/maps/project_map_4x.yaml" />
   </node>
 
   <include file="$(find very_simple_robot_simulator)/launch/minimal_simulator.launch" />
   <include file="$(find very_simple_robot_simulator)/launch/lidar_simulator.launch" />
 
   <node name="controller" pkg="final_project" type="controller.py" output="screen"/>
-  <node name="particle_filter" pkg="localization" type="particle_filter.py" output="screen"/>
-  <node name="display_particles" pkg="localization" type="display_particles.py" output="screen"/>
+  <node name="bfs" pkg="final_project" type="bfs.py" output="screen"/>
+  <node name="particle_filter" pkg="final_project" type="particle_filter.py" output="screen"/>
+  <node name="display_particles" pkg="final_project" type="display_particles.py" output="screen"/>
 
+  <node name="angular_controller" pkg="pid" type="controller" output="screen" >
+    <param name="Kp" value="1.5" />
+    <param name="Ki" value="0.004" />
+    <param name="upper_limit" value="1.5" />
+    <param name="lower_limit" value="-1.5" />
+    <param name="windup_limit" value="10" />
+  </node>
 
 </launch>
