@@ -47,6 +47,8 @@ class NavController:
 
         self.closest_point_index = 0
 
+        rospy.sleep(20)
+
         rospack = rospkg.RosPack()
 
         filename = 'poses.yaml'
@@ -79,13 +81,11 @@ class NavController:
         return self.path_plan.poses[self.closest_point_index + GAP].pose.position
 
     def localization_cb(self, pose: Pose):
-        print('llego el loc cb mano')
 
         self.pose = pose
         self.localized = True
 
     def path_cb(self, path: Path) -> None:
-        print('llego el path cb mano')
         while (
                 not hasattr(self, 'odom') or
                 not hasattr(self, 'pose') or

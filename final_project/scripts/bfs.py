@@ -81,17 +81,23 @@ class State:
         def detect_wall(origin: tuple, destin: tuple) -> bool:
             if limits(destin[0]+1, destin[1]+1):
                 if destin[0] <= origin[0]:
-                    aux_map = self.pixmap[destin[0]:origin[0]+1, origin[1]:destin[1]+1]
+                    aux_map_x = self.pixmap[destin[0]:origin[0]+1, origin[1]:destin[1]+1]
                 elif origin[0] <= destin[0]:
-                    aux_map = self.pixmap[origin[0]:destin[0]+1, origin[1]:destin[1]+1]
-                if destin[1] < origin[1]:
-                    aux_map = self.pixmap[destin[0]:origin[0]+1, destin[1]:origin[1]+1]
-                elif origin[1] <= destin[1]:
-                    aux_map = self.pixmap[origin[0]:destin[0]+1, origin[1]:destin[1]+1]
-                if 205 in aux_map or 0 in aux_map:
+                    aux_map_x = self.pixmap[origin[0]:destin[0]+1, origin[1]:destin[1]+1]
+
+                if 205 in aux_map_x or 0 in aux_map_x:
                     return True
-                else:
-                    return False
+
+                if destin[1] < origin[1]:
+                    aux_map_y = self.pixmap[destin[0]:origin[0]+1, destin[1]:origin[1]+1]
+                elif origin[1] <= destin[1]:
+                    aux_map_y = self.pixmap[origin[0]:destin[0]+1, origin[1]:destin[1]+1]
+
+                if 205 in aux_map_y or 0 in aux_map_y:
+                    return True
+
+                return False
+
             return True
 
         x_state = self.node_id[0]
