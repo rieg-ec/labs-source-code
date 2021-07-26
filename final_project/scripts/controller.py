@@ -13,8 +13,6 @@ from utils import (angular_error, euclidean_distance_2d, orientation_to_yaw,
 
 class NavController:
 
-    GAP = 3
-
     def __init__(self) -> None:
         rospy.Subscriber('/odom', Odometry, self.odom_cb)
 
@@ -43,11 +41,12 @@ class NavController:
 
     @property
     def carrot(self) -> Point:
+        GAP = 3
 
-        if self.closest_point_index + self.GAP > len(self.path_plan.poses) - 1:
+        if self.closest_point_index + GAP > len(self.path_plan.poses) - 1:
             return self.path_plan.poses[-1].pose.position
 
-        return self.path_plan.poses[self.closest_point_index + self.GAP].pose.position
+        return self.path_plan.poses[self.closest_point_index + GAP].pose.position
 
     def localization_cb(self, pose: Pose):
         self.pose = pose
