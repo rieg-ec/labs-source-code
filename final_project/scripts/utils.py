@@ -6,7 +6,8 @@ from geometry_msgs.msg import Point, Pose, Quaternion
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 RESOLUTION = 0.025
-MAP_DIM = (100, 196)
+MAP_DIM = (196, 100)
+MAP_DIM_METERS = (4.9, 2.5)
 
 
 def pixel_to_meters(px: int, py: int) -> Tuple[float, float]:

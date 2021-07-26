@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
-# from localization.scripts.utils import pixel_to_meters
-import rospy
-import math
 import random
-import numpy as np
-from scipy.stats import norm
-from scipy import spatial
-
-from geometry_msgs.msg import Pose, Quaternion
-from utils import meters_to_pixel, pixel_to_meters
-
 from typing import List
 
-from utils import yaw_to_orientation, orientation_to_yaw, shifted_sigmoid, CONVERSION_RATE
+import numpy as np
+import rospy
+from geometry_msgs.msg import Pose, Quaternion
+from scipy import spatial
+from scipy.stats import norm
+
+from utils import (MAP_DIM, meters_to_pixel, orientation_to_yaw,
+                   pixel_to_meters, yaw_to_orientation)
 
 
 class Particle(Pose):
@@ -33,10 +30,10 @@ class Particle(Pose):
         next_x = self.position.x + dx
         next_y = self.position.y + dy
 
-        if next_x < 269 and next_x >= 0:
+        if next_x < MAP_DIM[0] and next_x >= 0:
             self.position.x = next_x
 
-        if next_y < 269 and next_y >= 0:
+        if next_y < MAP_DIM[1] and next_y >= 0:
             self.position.y = next_y
 
         self.yaw += dtheta
@@ -58,10 +55,11 @@ def likelihood_fields(measurement: list, particle: Particle, ckdtree: spatial.cK
 
     stats = norm(0, 0.4)
 
+    x, y = pixel_to_meters(particle.position.x, particle.position.y)
+
     for z_k in measurement:
         angle += angle_increment
         if z_k != z_max:
-            x, y = pixel_to_meters(particle.position.x, particle.position.y)
             obj_from_particle_x = x + \
                 z_k * np.cos(particle.yaw + angle)
             obj_from_particle_y = y + \
@@ -93,9 +91,7 @@ def monte_carlo_localization(
         weights.append(w)
         if len(str(w)[:2]) > largest_float:
             largest_float = len(str(w)[:2])
-    # print(weights)
 
-    # weights = shifted_sigmoid(np.array(weights))
     max_weight = max(weights)
     weights = [float(i)/max_weight for i in weights]
 

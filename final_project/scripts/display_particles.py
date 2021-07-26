@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import rospy
-import numpy as np
 import cv2
+import numpy as np
+import rospy
 from geometry_msgs.msg import PoseArray
 
 from utils import meters_to_pixel
@@ -29,5 +29,5 @@ def show_image(pose_array: PoseArray) -> None:
 
 if __name__ == '__main__':
     rospy.init_node('show', anonymous=True)
-    rospy.Subscriber('/localization', PoseArray, show_image)
+    rospy.Subscriber('/particles', PoseArray, show_image)
     rospy.spin()

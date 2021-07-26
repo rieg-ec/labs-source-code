@@ -3,7 +3,7 @@ import math
 import random
 
 import rospy
-from geometry_msgs.msg import Point, Pose, Twist
+from geometry_msgs.msg import Point, Pose, Twist, PoseArray
 from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import Float64
 
@@ -21,7 +21,7 @@ class NavController:
         rospy.Subscriber('/control_effort', Float64,
                          lambda v: setattr(self, 'angular_speed', v.data * -1))
 
-        rospy.Subscriber('/localization_pose', Pose, self.localization_cb)
+        rospy.Subscriber('/localization', Pose, self.localization_cb)
 
         self.ang_state_publisher = rospy.Publisher(
             '/state', Float64, queue_size=1)
@@ -31,6 +31,10 @@ class NavController:
 
         self.velocity_publisher = rospy.Publisher(
             '/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=1)
+
+        self.pose_2_publisher = rospy.Publisher(
+            '/pose_2', PoseArray, queue_size=1
+        )
 
         self.localization = False
         self.obstacles = []
@@ -58,6 +62,8 @@ class NavController:
         self.path_plan = path
         self.follow_the_carrot()
 
+        self.goal_poses_publisher.publish()
+
     def odom_cb(self, odom: Odometry) -> None:
         if hasattr(self, 'odom'):
             dx = odom.pose.pose.position.x - self.odom.position.x
@@ -70,7 +76,7 @@ class NavController:
         if hasattr(self, 'pose'):
             self.pose.position.x += dx
             self.pose.position.y += dy
-            # TODO: add dtheta instead of rewriting oritentation
+            # TODO: add d_theta instead of rewriting oritentation
             self.pose.orientation = self.odom.orientation
 
     def update_closes_point_index(self) -> None:
@@ -100,7 +106,7 @@ class NavController:
 
             self.update_closes_point_index()
 
-            current_angle = orientation_to_yaw(self.odom.orientation)
+            current_angle = orientation_to_yaw(self.pose.orientation)
             target_angle = shortest_line_angle(self.pose.position, self.carrot)
 
             self.ang_state_publisher.publish(
