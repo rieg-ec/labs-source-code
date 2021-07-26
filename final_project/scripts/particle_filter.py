@@ -32,9 +32,9 @@ class ParticleFilter:
 
         rospy.Subscriber('/odom', Odometry, self.odom_cb)
 
-        rospy.Subscriber('/goal_poses', PoseArray, self.goal_poses_cb)
+        rospy.Subscriber('/locate', Pose, self.locate_cb)
 
-    def goal_poses_cb(self, pose_array: PoseArray) -> None:
+    def locate_cb(self, pose: Pose) -> None:
         while (
             not hasattr(self, 'scan') or
             not hasattr(self, 'ckdtree') or
@@ -43,11 +43,11 @@ class ParticleFilter:
         ):
             rospy.Rate(10).sleep()
 
-        x = pose_array.poses[0].position.x
-        y = pose_array.poses[0].position.y
-        theta = pose_array.poses[0].orientation.z
+        x = pose.position.x
+        y = pose.position.y
+        theta = orientation_to_yaw(pose.orientation)
 
-        x, y = meters_to_pixel(x, MAP_DIM_METERS[0] - y)
+        x, y = meters_to_pixel(x, MAP_DIM_METERS[1] - y)
 
         self.create_particles(x, y, theta)
 
@@ -57,7 +57,7 @@ class ParticleFilter:
         self.odom = odom.pose.pose
 
     def map_cb(self, grid: OccupancyGrid):
-        self.map_grid = np.resize(grid.data, (100, 196)).T
+        self.map_grid = np.resize(grid.data, MAP_DIM[::-1]).T
 
         obstacle_coords = []
         for x in range(MAP_DIM[0]):
@@ -68,17 +68,8 @@ class ParticleFilter:
         self.ckdtree = spatial.cKDTree(obstacle_coords)
 
     def localization(self) -> None:
-        pose = Pose(
-            Point(0.5, 0.5, 0),
-            Quaternion(*yaw_to_orientation(0))
-        )
-
-        self.localization_publisher.publish(pose)
-        return
-
-        #################
         localized = False
-        DISTANCE_THRESHOLD = 2
+        DISTANCE_THRESHOLD = 5
 
         while not rospy.is_shutdown() and not localized:
 
@@ -108,9 +99,12 @@ class ParticleFilter:
 
             if particles_distance < DISTANCE_THRESHOLD:
                 mc_x, mc_y = self.mass_center(pose_array)
+
+                print(pixel_to_meters(mc_x, MAP_DIM[1] - mc_y), 'AAAAAAAA')
+
                 # TODO: mass_center but for theta
                 pose = Pose(
-                    Point(mc_x, MAP_DIM[1] - mc_y, 0),
+                    Point(*pixel_to_meters(mc_x, MAP_DIM[1] - mc_y), 0),
                     Quaternion(*yaw_to_orientation(0))
                 )
                 self.localization_publisher.publish(pose)
@@ -142,21 +136,33 @@ class ParticleFilter:
         return (dist_x / len(particles.poses)) + (dist_y / len(particles.poses))
 
     def create_particles(self, x_start: int, y_start: int, theta_start: float) -> None:
-        ERROR = 100
+        ERROR = 5
+
+        if x_start - ERROR < 0:
+            x_start = ERROR
+
+        if y_start - ERROR < 0:
+            y_start = ERROR
+
+        if x_start + ERROR > MAP_DIM[0] - 1:
+            x_start = MAP_DIM[0] - ERROR - 1
+
+        if y_start + ERROR > MAP_DIM[1] - 1:
+            y_start = MAP_DIM[1] - ERROR - 1
 
         self.particles = []
 
         for _ in range(self.n_particles):
-            x = random.randint(0, MAP_DIM[0] - 1)
-            y = random.randint(0, MAP_DIM[1] - 1)
+            x = random.randint(x_start - ERROR, x_start + ERROR)
+            y = random.randint(y_start - ERROR, y_start + ERROR)
+
             while (
                 self.map_grid[x][y] == 100 or
-                self.map_grid[x][y] == 19 or
-                abs(x - x_start) + abs(y - y_start) > ERROR
+                self.map_grid[x][y] == 19
             ):
 
-                x = random.randint(0, MAP_DIM[0] - 1)
-                y = random.randint(0, MAP_DIM[1] - 1)
+                x = random.randint(x_start - ERROR, x_start + ERROR)
+                y = random.randint(y_start - ERROR, y_start + ERROR)
 
             self.particles.append(Particle(
                 Point(x, y, 0), Quaternion(*yaw_to_orientation(theta_start))))
@@ -164,5 +170,5 @@ class ParticleFilter:
 
 if __name__ == '__main__':
     rospy.init_node('particle_filter', anonymous=True)
-    particle_filter = ParticleFilter(100)
+    particle_filter = ParticleFilter(400)
     rospy.spin()

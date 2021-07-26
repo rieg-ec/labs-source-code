@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-import math
-import random
+from os import path
 
 import rospy
-from geometry_msgs.msg import Point, Pose, Twist, PoseArray
+import rospkg
+import yaml
+from geometry_msgs.msg import Point, Pose, Twist, PoseArray, Quaternion
 from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import Float64
 
 from utils import (angular_error, euclidean_distance_2d, orientation_to_yaw,
-                   shortest_line_angle)
+                   shortest_line_angle, yaw_to_orientation)
 
 
 class NavController:
@@ -32,16 +33,40 @@ class NavController:
         self.velocity_publisher = rospy.Publisher(
             '/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=1)
 
-        self.pose_2_publisher = rospy.Publisher(
-            '/pose_2', PoseArray, queue_size=1
+        self.path_planning_publisher = rospy.Publisher(
+            '/bfs', PoseArray, queue_size=1
         )
 
-        self.localization = False
-        self.obstacles = []
+        self.locate_publisher = rospy.Publisher(
+            '/locate', Pose, queue_size=1
+        )
+
+        self.path_finished = False
 
         self.angular_speed = 0
 
         self.closest_point_index = 0
+
+        rospack = rospkg.RosPack()
+
+        filename = 'poses.yaml'
+        filepath = path.join(rospack.get_path(
+            'final_project'), 'scripts', filename)
+
+        with open(filepath) as f:
+            doc = yaml.load(f)
+
+        self.pose_array = PoseArray()
+
+        for i in range(1, 4):
+            x, y, yaw = doc[f'pose_{i}']
+            point = Point(x, y, 0)
+            quaternion = Quaternion(*yaw_to_orientation(yaw))
+            self.pose_array.poses.append(Pose(point, quaternion))
+
+        start_pose = self.pose_array.poses.pop(0)
+        mid_pose = self.pose_array.poses.pop(0)
+        self.publish_pose(start_pose, mid_pose)
 
     @property
     def carrot(self) -> Point:
@@ -54,15 +79,26 @@ class NavController:
 
     def localization_cb(self, pose: Pose):
         self.pose = pose
+        self.localized = True
+        print('AAAAAAAAAAAAAAAAa')
 
     def path_cb(self, path: Path) -> None:
-        while not hasattr(self, 'odom') or not hasattr(self, 'pose'):
+        while (
+                not hasattr(self, 'odom') or
+                not hasattr(self, 'pose') or
+                not self.localized
+        ):
             rospy.Rate(10).sleep()
 
         self.path_plan = path
         self.follow_the_carrot()
 
-        self.goal_poses_publisher.publish()
+        if self.pose_array.poses:
+            pose_end = self.pose_array.poses.pop(0)
+        else:
+            pose_end = None
+
+        self.publish_pose(pose_end=pose_end)
 
     def odom_cb(self, odom: Odometry) -> None:
         if hasattr(self, 'odom'):
@@ -79,7 +115,10 @@ class NavController:
             # TODO: add d_theta instead of rewriting oritentation
             self.pose.orientation = self.odom.orientation
 
-    def update_closes_point_index(self) -> None:
+    def update_closest_point_index(self) -> None:
+        if self.closest_point_index > len(self.path_plan.poses) - 1:
+            self.closest_point_index = 0
+
         for idx, pos in enumerate(self.path_plan.poses):
             if (
                 euclidean_distance_2d(self.pose.position, pos.pose.position) <
@@ -98,13 +137,10 @@ class NavController:
             not rospy.is_shutdown() and
             euclidean_distance_2d(
                 self.path_plan.poses[-1].pose.position, self.pose.position
-            ) > 0.05
+            ) > 0.1
         ):
 
-            print(f'({self.carrot.x}, {self.carrot.y})', euclidean_distance_2d(
-                self.pose.position, self.path_plan.poses[self.closest_point_index].pose.position))
-
-            self.update_closes_point_index()
+            self.update_closest_point_index()
 
             current_angle = orientation_to_yaw(self.pose.orientation)
             target_angle = shortest_line_angle(self.pose.position, self.carrot)
@@ -117,6 +153,28 @@ class NavController:
 
             self.velocity_publisher.publish(velocity)
             rospy.Rate(10).sleep()
+
+        self.localized = False
+
+    def publish_pose(self, pose_start: Pose = None, pose_end: Pose = None) -> None:
+        while (
+                self.path_planning_publisher.get_num_connections() < 1 or
+                self.locate_publisher.get_num_connections() < 1
+        ):
+            rospy.Rate(10).sleep()
+
+        if not pose_start:
+            pose_start = self.pose
+
+        if not pose_end:
+            self.locate_publisher.publish(pose_start)
+            return
+
+        path_poses = PoseArray()
+        path_poses.poses.extend([pose_start, pose_end])
+        self.path_planning_publisher.publish(path_poses)
+
+        self.locate_publisher.publish(pose_start)
 
 
 if __name__ == '__main__':

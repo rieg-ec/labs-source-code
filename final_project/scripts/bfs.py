@@ -171,7 +171,7 @@ class SearchBFS:
     def __init__(self, pixmap: np.array) -> None:
         self.c_space_map = c_space_map(pixmap)
 
-        rospy.Subscriber('/goal_poses', PoseArray, self.goal_poses_cb)
+        rospy.Subscriber('/bfs', PoseArray, self.goal_poses_cb)
 
         self.nav_path_publisher = rospy.Publisher(
             '/nav_plan', Path, queue_size=1)
