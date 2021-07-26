@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# from localization.scripts.utils import pixel_to_meters
 import rospy
 import math
 import random
@@ -7,6 +8,7 @@ from scipy.stats import norm
 from scipy import spatial
 
 from geometry_msgs.msg import Pose, Quaternion
+from utils import meters_to_pixel, pixel_to_meters
 
 from typing import List
 
@@ -39,6 +41,9 @@ class Particle(Pose):
 
         self.yaw += dtheta
 
+    def __repr__(self) -> str:
+        return str((self.position.x, self.position.y))
+
 
 def sample_motion_model(action: list, particle: Particle) -> None:
     particle.move(*action)
@@ -51,15 +56,15 @@ def likelihood_fields(measurement: list, particle: Particle, ckdtree: spatial.cK
     z_max = 4.0
     weight = 15
 
-    stats = norm(0, 3)
+    stats = norm(0, 0.4)
 
     for z_k in measurement:
         angle += angle_increment
         if z_k != z_max:
-            z_k = z_k / CONVERSION_RATE
-            obj_from_particle_x = particle.position.x + \
+            x, y = pixel_to_meters(particle.position.x, particle.position.y)
+            obj_from_particle_x = x + \
                 z_k * np.cos(particle.yaw + angle)
-            obj_from_particle_y = particle.position.y + \
+            obj_from_particle_y = y + \
                 z_k * np.sin(particle.yaw + angle)
 
             dist, _ = ckdtree.query(
@@ -67,8 +72,7 @@ def likelihood_fields(measurement: list, particle: Particle, ckdtree: spatial.cK
                 distance_upper_bound=100,
                 workers=-1
             )
-
-            q *= stats.pdf(dist) * weight
+            q *= stats.pdf(dist[0]) * weight
 
     return q
 
@@ -89,9 +93,11 @@ def monte_carlo_localization(
         weights.append(w)
         if len(str(w)[:2]) > largest_float:
             largest_float = len(str(w)[:2])
+    # print(weights)
 
-    weights = shifted_sigmoid(np.array(weights))
-    weights = [float(i)/max(weights) for i in weights]
+    # weights = shifted_sigmoid(np.array(weights))
+    max_weight = max(weights)
+    weights = [float(i)/max_weight for i in weights]
 
     scale_factor = 10 ** largest_float
     weights = [int(w * scale_factor) for w in weights]

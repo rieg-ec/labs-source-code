@@ -8,18 +8,18 @@ from utils import meters_to_pixel
 
 
 def show_image(pose_array: PoseArray) -> None:
-    img = np.zeros((270, 270, 3), np.uint8)
+    img = np.zeros((200, 392, 3), np.uint8)
 
     odom = pose_array.poses.pop(-1)
 
     for pose in pose_array.poses:
         # x & y switched on purpose
         x, y = int(pose.position.x), int(pose.position.y)
-        cv2.circle(img, (x, y), 5, (255, 0, 0), -1)
+        cv2.circle(img, (2 * x, 2 * y), 5, (255, 0, 0), -1)
 
     odomx, odomy = meters_to_pixel(odom.position.x, odom.position.y)
 
-    cv2.circle(img, (odomx, odomy), 5, (0, 255, 0), -1)
+    cv2.circle(img, (odomx, odomy), 2, (0, 255, 0), -1)
 
     cv2.imshow("image", img)
 
